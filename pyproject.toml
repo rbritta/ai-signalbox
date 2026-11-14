@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-signalbox"
+version = "0.1.0"
+description = "A signal box for many AI coding sessions working side by side: who is who, what each is doing, shared resources, the workflow, and routing a message to the right session."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "rbritta" }]
+requires-python = ">=3.11"
+dependencies = []
+keywords = ["ai", "agents", "claude-code", "coordination", "multi-session", "hooks"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Software Development",
+]
+
+[project.optional-dependencies]
+proc = ["psutil>=5.9"]
+
+[project.scripts]
+signalbox = "ai_signalbox.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/rbritta/ai-signalbox"
+
+[tool.setuptools.packages.find]
+where = ["src"]

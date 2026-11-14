@@ -1,0 +1,73 @@
+# ai-signalbox example config. Copy to ~/.signalbox/config.toml (or point $SIGNALBOX_CONFIG at it).
+# Relative paths are relative to this file's folder.
+
+root = "~/.signalbox/state"            # where the shared state lives ($SIGNALBOX_ROOT overrides it)
+
+plugins = ["builtin:git", "builtin:ports", "builtin:relay", "example_plugin"]
+plugin_paths = ["."]                   # where example_plugin.py lives
+
+[workspaces]
+# One clone of the project per workspace: ~/src/ws1, ~/src/ws2, ... The same {pattern, name} rule names the windows
+# of claude-session-relay, so one rule serves both.
+rules = [{ pattern = '[\/]src[\/](ws\d+)(?:[\/]|$)', name = "$1" }]
+glob = ["~/src/ws*"]
+
+[host]
+config_dirs = ["~/.claude"]            # add a second folder when one machine runs two accounts
+
+[person]
+source = "person"                      # how a delivered message names who sent it
+waiting_words = ["person"]             # note --waiting person: the session waits for the person
+
+[resources.app]
+description = "the dev servers on 3000 and 3001"
+ports = [3000, 3001]
+stop_on_close = true                   # builtin:ports stops this workspace's servers on close
+
+[resources.db]
+description = "the shared local database: shared = reads; exclusive = migrations, imports"
+shared = true
+
+[resources.browser]
+description = "the shared debugging browser"
+ports = [9222]
+
+[workflow]
+guide = "flow.md"
+neutral = ["free", "infra"]            # work with no item: never checked
+resume_phase = "resume"
+resume_next = "verify"
+keep_target = ["blocked", "resume"]
+
+[status]
+rereview = { phase = "review", needs = ["implement", "verify", "resume"] }
+
+[priority]
+wait_minutes = 10
+delivered_phases = ["handoff", "cleanup"]
+# person_by = "app"                    # how an order the person's app sets is signed (default: person.source)
+# by_signalbox = "signalbox"           # how an order signalbox sets by itself is signed
+
+[jobs]
+types = ["download", "export", "import", "build", "test", "deploy"]
+done_expected = ["build", "test"]
+
+[close]
+repos = ["."]
+main_branch = "main"
+remote = "origin"
+phase = "free"
+delay = 30
+
+[events]
+skill_phase = { check = "verify", ship = "pr-create" }
+# prompt_kind = "prompt"               # the event kind of a prompt the person typed in a session
+
+[serve]
+host = "127.0.0.1"
+port = 8765
+# token = "..."                        # default: a random one, printed on start
+
+[texts]
+# Any wording can be overridden here, e.g. the first line a session reads on start:
+"start.title" = "=== signalbox ==="
