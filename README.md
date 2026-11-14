@@ -21,7 +21,7 @@ Sessions write it through the CLI, hooks deliver what waits for them, and any ap
 - **Close**: `close` gives the leases back, syncs the repos, stops the servers and closes the window, in steps
   plugins can add to.
 
-Python 3.11+, standard library only. Claude Code is the host it ships with; the host layer is a plugin point.
+Python 3.12+, standard library only. Claude Code is the host it ships with; the host layer is a plugin point.
 
 ## Install
 

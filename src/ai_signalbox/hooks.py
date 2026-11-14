@@ -168,7 +168,8 @@ def sent(app, data):
     sender = app.me(sessions, data.get('session_id')) or app.host.hook_who(data)
     target = next((s for s in sessions if s.get('name') == to.split(' [')[0]), None)
     body = '\n'.join(f'  > {l}' for l in message.splitlines()) or '  > (idle subscription only)'
-    app.log_line(f"- {now():%H:%M:%S} **{label(sender)} -> {to}{f' ({target['workspace']})' if target else ''}**\n"
+    where = f" ({target['workspace']})" if target else ''
+    app.log_line(f"- {now():%H:%M:%S} **{label(sender)} -> {to}{where}**\n"
                  f"{body}\n")
     target_label = label(target) if target else app.host.pipes.get(to, to)
     if message:

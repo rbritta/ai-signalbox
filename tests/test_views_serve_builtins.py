@@ -360,7 +360,8 @@ class PluginCliTest(Case):
         self.assertIn('entries removed', self.cli('hooks', 'remove', '--settings', str(settings))[1])
         self.assertIn('no signalbox hook', self.cli('hooks', 'status', '--settings', str(settings))[1])
         code, out, _ = self.cli('--version')
-        self.assertIn('ai-signalbox 0.1.0', out)
+        from ai_signalbox import __version__
+        self.assertIn(f'ai-signalbox {__version__}', out)
 
     def test_config_file_and_module_entry(self):
         cfg = self.tmp / 'conf' / 'config.toml'

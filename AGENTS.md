@@ -1,6 +1,6 @@
 # Working on ai-signalbox
 
-- Python 3.11+, standard library only in the core; `psutil` is an optional extra and every use of it has a fallback.
+- Python 3.12+, standard library only in the core; `psutil` is an optional extra and every use of it has a fallback.
 - Tests: `python -m unittest discover -s tests -t tests`. They run offline in temp folders with a fake host registry
   and fake processes; a test never reads the real home, the real host registry or the network.
 - Layout: `src/ai_signalbox/` is the core, `builtin/` the plugins that ship with it, `hosts/` the host adapters,

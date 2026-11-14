@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 (2026-11-14)
+
+- Python 3.12 or later: 3.11's argparse refuses words after an option (`job x --end failed "the note"`,
+  `send ws --ask 1 -`), which the CLI takes on 3.12 and later. 0.1.0 said 3.11 and failed there.
+- A nested f-string in the message hook rewritten so the module also compiles before 3.12.
+
 ## 0.1.0 (2026-11-14)
 
 First release.
