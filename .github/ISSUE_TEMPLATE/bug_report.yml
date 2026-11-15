@@ -1,0 +1,42 @@
+name: Bug report
+description: Something does not work the way the README or the protocol says it does.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Please search the open issues first. A security problem goes through [SECURITY.md](https://github.com/rbritta/ai-signalbox/blob/main/SECURITY.md), not here.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The output of `signalbox --version`, or a commit.
+      placeholder: ai-signalbox 0.1.2
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: The commands, the config and the output that show it. Made-up names and paths only.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Python version, OS, whether psutil is installed, and the host (Claude Code version).
+      placeholder: Python 3.13, Windows 11, no psutil, Claude Code 2.x
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: Logs or the relevant lines of events.jsonl. Remove secrets and personal data first.
