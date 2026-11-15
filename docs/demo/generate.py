@@ -391,6 +391,7 @@ def render(run: Run, version: str, when: dt.datetime) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'">
 <meta name="generator" content="ai-signalbox docs/demo/generate.py ({origin})">
+<link rel="icon" href="data:,">
 <title>ai-signalbox live demo</title>
 <link rel="stylesheet" href="demo.css">
 </head>
@@ -429,6 +430,7 @@ INDEX = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'">
 <meta http-equiv="refresh" content="0; url=demo/">
+<link rel="icon" href="data:,">
 <title>ai-signalbox</title>
 </head>
 <body><p><a href="demo/">ai-signalbox live demo</a></p></body>

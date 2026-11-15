@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- The live demo page declares its own icon, so the browser no longer asks the site root for a missing
+  `favicon.ico` (one 404 in the console on the first load).
+
 ## [0.1.2] - 2026-11-14
 
 No change in what the library does: the project around it, and the Python versions it says it needs.
