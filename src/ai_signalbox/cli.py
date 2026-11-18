@@ -103,6 +103,20 @@ def build_parser(app=None):
     c.add_argument('--sid')
     text_opts(c)
 
+    c = cmd('offer', 'work put up for a session to claim: for a workspace, or any (no workspace); --withdraw ID')
+    c.add_argument('workspace', nargs='?')
+    c.add_argument('--title')
+    c.add_argument('--from', dest='source', help='how the offer names who posted it')
+    c.add_argument('--withdraw', metavar='ID')
+    text_opts(c, positional=False)
+    c = cmd('offers', 'the open offers the calling session may claim (--all: every open offer)')
+    c.add_argument('--all', action='store_true')
+    c.add_argument('--json', action='store_true')
+    c.add_argument('--sid', help=HIDDEN)
+    c = cmd('claim', 'take an offer: it becomes the message and thread a send would have made, once')
+    c.add_argument('id')
+    c.add_argument('--sid', help=HIDDEN)
+
     c = cmd('job', 'a long job of the session, with steps')
     c.add_argument('name', nargs='?')
     c.add_argument('end_note', nargs='*', help=argparse.SUPPRESS)
@@ -202,7 +216,7 @@ def build_parser(app=None):
 
 def run(app, args) -> int:  # noqa: C901 - one dispatch table
     from . import close as close_mod
-    from . import hooks, inbox, jobs, leases, priority, status, threads, views
+    from . import hooks, inbox, jobs, leases, offers, priority, status, threads, views
     a = args
     if a.cmd in (None, 'board'):
         views.board(app, getattr(a, 'json', False))
@@ -224,6 +238,16 @@ def run(app, args) -> int:  # noqa: C901 - one dispatch table
     elif a.cmd == 'thread':
         text = _text(a) if (a.text_file or a.text) else None
         threads.thread(app, a.id, text, from_person=a.from_person, close=a.close, sid=a.sid, as_json=a.json)
+    elif a.cmd == 'offer':
+        if a.withdraw:
+            offers.withdraw(app, a.withdraw)
+        else:
+            offers.offer(app, _text(a, required=True, what='the offer'), workspace=a.workspace, title=a.title,
+                         source=a.source)
+    elif a.cmd == 'offers':
+        offers.listing(app, everything=a.all, as_json=a.json, sid=a.sid)
+    elif a.cmd == 'claim':
+        offers.claim(app, a.id, sid=a.sid)
     elif a.cmd == 'job':
         jobs.job(app, a.name, steps=a.steps, step=a.step, end=a.end, note=' '.join(a.end_note) or None, item=a.item,
                  pid=a.pid, at=a.at, wait=a.wait, done=_file_or(a.done, a.done_file, '--done-file'), from_=a.from_,

@@ -26,6 +26,9 @@ This page is the contract: the files, their fields, the event kinds, and the map
   box/<workspace>/.start-<sid>      the session's start file (watched; marks that it listens)
   box/<workspace>/.woke-<sid>       the session already woke for its start (not watched)
   box/<workspace>/.vigil-<sid>      the session's idle vigil is up
+  offers/<id>.json        work put up for a session to claim
+  offers/claimed/<id>.json          the same offer once a session claimed it
+  offers/withdrawn/<id>.json        the same offer once taken back
   inbox/<workspace>.md    notes for a workspace with no live session (inbox/<workspace>.read.md once read)
   log/<YYYY-MM-DD>.md     the message log of the day
   snapshots/<sid>.json    what the pre-compaction hook kept
@@ -63,6 +66,8 @@ rotated, so it is read from the start. Unknown kinds pass through; plugins may a
 | `ask` | `action` (open, close), `n`, `type`, `alert`, `note` | an ask opened or closed |
 | `send` | `id`, `to_workspace`, `to_sid`, `ask` | the person sent a message (it opens a thread with the same id) |
 | `thread` | `action` (open, turn, close), `id`, `n`, `by` (person, session), `to_workspace`, `to_sid`, `message`, `ask` | a thread moved |
+| `offer` | `action` (open, withdraw), `id`, `to_workspace` (null: any), `by` | an offer was put up or taken back |
+| `claim` | `id`, `message`, `by`, `offered_to` | a session claimed an offer; `message` is the message and thread it became |
 | `delivered` | `id`, `via` (start, signal, vigil, prompt, thread), `thread`, `ask`, `notice` | a message reached a session |
 | `lease` | `res`, `action` (hold, release), `mode`, `why`, `item`, `until`, `queue`, `next`, `result` | a lease was taken or given back |
 | `queue` | `res`, `action` (want), `mode`, `why`, `position` | someone joined a queue |
@@ -115,6 +120,18 @@ session that ends hands its unread messages back with `sid: null` and `from_sid`
 
 Who gets a message: the session it names while that one is alive and listens (its start file or vigil exists, or it is
 mid-turn) or while it answers that session's ask; otherwise any session of the workspace that claims it first.
+
+## Offers
+
+`offers/<id>.json`: `{id, workspace (null: any workspace), title, text, from, at}`. An app or the person puts up a
+piece of work (`signalbox offer [workspace] --text-file <file>`); a session lists the open ones it may take
+(`signalbox offers`: its workspace's and the ones for any) and takes one (`signalbox claim <id>`).
+
+Claiming moves the file to `offers/claimed/<id>.json` by one atomic rename, so of two sessions claiming the same offer
+one gets it and the other is refused; then it sends the offer's text to the claiming session exactly as `send` would
+(a box message to that sid, `from` as the offer's `from`, and a thread with the message's id), and adds `claimed_at`,
+`sid`, `name`, `claimed_workspace` and `message`. When the send fails, the offer goes back to `offers/` as it was.
+`signalbox offer --withdraw <id>` moves an open offer to `offers/withdrawn/<id>.json` with `withdrawn_at`.
 
 ## chat-thread
 

@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Offers: work an app or the person puts up for a session to take, with the same delivery as a push.
+  `signalbox offer [workspace] --text-file <file>` posts it for a workspace or for any (`--title`, `--from`,
+  `--withdraw <id>`), `signalbox offers` lists the open ones the calling session may take, and `signalbox claim <id>`
+  takes one: it becomes the message and thread a `send` to that session would have made, exactly once (an atomic
+  rename into `offers/claimed/`, and the offer goes back to open when the send fails). New files `offers/`, new event
+  kinds `offer` and `claim` (docs/PROTOCOL.md, "Offers").
+
 ### Fixed
 - The live demo page declares its own icon, so the browser no longer asks the site root for a missing
   `favicon.ico` (one 404 in the console on the first load).

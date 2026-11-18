@@ -86,6 +86,12 @@ class Store:
     def woke_path(self, workspace: str, sid: str) -> Path: raise NotImplementedError
     def vigil_path(self, workspace: str, sid: str) -> Path: raise NotImplementedError
 
+    # ------------------------------------------------------------ offers
+    def offer_put(self, offer: dict) -> None: raise NotImplementedError
+    def offer_get(self, oid: str, state: str = 'open'): raise NotImplementedError
+    def offer_list(self, state: str = 'open') -> list[dict]: raise NotImplementedError
+    def offer_move(self, oid: str, src: str, dst: str, extra: dict): raise NotImplementedError
+
     # ------------------------------------------------------------ requests to the person-facing app
     def get_request(self, rid: str): raise NotImplementedError
     def put_request(self, req: dict) -> None: raise NotImplementedError
@@ -109,8 +115,9 @@ class FileStore(Store):
     """JSON files under the root:
 
     events.jsonl (+ events.prev.jsonl), status/<sid>.json, leases/ queues/ shared/<res>.json, priority.json,
-    threads/<id>.json, box/<workspace>/<id>.json (+ delivered/), requests/<id>.json, inbox/<workspace>.md,
-    log/<day>.md, snapshots/<sid>.json, state/<name>.json, and a .lock file per group.
+    threads/<id>.json, box/<workspace>/<id>.json (+ delivered/), offers/<id>.json (+ claimed/, withdrawn/),
+    requests/<id>.json, inbox/<workspace>.md, log/<day>.md, snapshots/<sid>.json, state/<name>.json, and a .lock file
+    per group.
     """
 
     def __init__(self, root, events_max_bytes: int = 5_000_000):
@@ -324,6 +331,39 @@ class FileStore(Store):
 
     def vigil_path(self, workspace, sid):
         return self.box_dir(workspace) / f'.vigil-{sid}'
+
+    # ------------------------------------------------------------ offers
+    def offer_dir(self, state='open'):
+        return self.root / 'offers' if state == 'open' else self.root / 'offers' / state
+
+    def offer_put(self, offer):
+        write_atomic(self.offer_dir() / f"{offer['id']}.json", offer)
+
+    def offer_get(self, oid, state='open'):
+        return read_json(self.offer_dir(state) / f'{oid}.json')
+
+    def offer_list(self, state='open'):
+        folder = self.offer_dir(state)
+        if not folder.exists():
+            return []
+        found = (o for o in (read_json(f) for f in folder.glob('*.json')) if o)
+        return sorted(found, key=lambda o: (o.get('at') or '', o.get('id') or ''))
+
+    def offer_move(self, oid, src, dst, extra):
+        """Move an offer from one state folder to another by one atomic rename: of two sessions claiming it, one
+        wins and the other gets None. With src == dst it only adds the fields."""
+        a, b = self.offer_dir(src), self.offer_dir(dst)
+        b.mkdir(parents=True, exist_ok=True)
+        o = read_json(a / f'{oid}.json')
+        if not o:
+            return None
+        try:
+            os.replace(a / f'{oid}.json', b / f'{oid}.json')
+        except OSError:
+            return None  # another session took it first
+        o.update(extra)
+        write_json(b / f'{oid}.json', o)
+        return o
 
     # ------------------------------------------------------------ requests
     def get_request(self, rid):

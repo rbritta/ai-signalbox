@@ -6,5 +6,6 @@
 - `builtin:relay`: open a session (claude-session-relay's `new` action), not only close it.
 - Host adapters for other AI coding tools (the `hosts/` interface is there; only Claude Code ships).
 - A small reference viewer for the board and the threads, built on `serve`.
+- Offers on the board and in the start context (the open ones a session may claim), and over `serve`.
 - Answer an ask from chat-thread with a reply markup (quick replies), not only free text.
 - chat-thread's REST store: follow `/api/events` (SSE) or poll, so a new turn shows without a reload.

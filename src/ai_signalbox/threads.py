@@ -179,10 +179,11 @@ def to_chat(app, t) -> dict:
 
 # ---------------------------------------------------------------- the person's side
 
-def send(app, workspace, text, sid=None, ask_n=None, source=None):
+def send(app, workspace, text, sid=None, ask_n=None, source=None, echo=True):
     """The person's message to a workspace: one file in its box, picked up by the session's hooks; it opens a thread
     with the message's id. With no sid: a live session that listens, the newest card first, then the newest start;
-    none listening, no owner, and the first session of the workspace that can takes it."""
+    none listening, no owner, and the first session of the workspace that can takes it. `echo=False`: the caller
+    (a claimed offer) prints its own answer."""
     workspace = (workspace or '').lower()
     if workspace not in app.workspaces.all() and not re.fullmatch(r'[\w.-]{1,64}', workspace):
         raise Refuse(f'invalid workspace: {workspace}')
@@ -218,7 +219,8 @@ def send(app, workspace, text, sid=None, ask_n=None, source=None):
     app.log_line(f"- {now():%H:%M:%S} **{who} -> {workspace}**{f' (ask #{n})' if n else ''}\n{body}\n")
     app.emit('send', None, f'-> {workspace}: {text}', to_workspace=workspace, to_sid=sid, ask=n, id=mid)
     out = {'ok': True, 'id': mid, 'sid': sid}
-    print(json.dumps(out))
+    if echo:
+        print(json.dumps(out))
     return out
 
 

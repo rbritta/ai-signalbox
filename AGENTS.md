@@ -14,7 +14,7 @@ standard library only in the core.
 
 | Path | What |
 |---|---|
-| `src/ai_signalbox/` | the core: `cli.py` (argument parsing and dispatch), `app.py` (the object every command works through), `config.py`, `store.py` (the files), `status.py`, `threads.py`, `leases.py`, `jobs.py`, `workflow.py`, `views.py` (board, peek), `hooks.py`, `guard.py`, `close.py`, `serve.py`, `texts.py` (all wording) |
+| `src/ai_signalbox/` | the core: `cli.py` (argument parsing and dispatch), `app.py` (the object every command works through), `config.py`, `store.py` (the files), `status.py`, `threads.py`, `offers.py` (work a session claims), `leases.py`, `jobs.py`, `workflow.py`, `views.py` (board, peek), `hooks.py`, `guard.py`, `close.py`, `serve.py`, `texts.py` (all wording) |
 | `src/ai_signalbox/builtin/` | the plugins that ship with it (git, ports, relay) |
 | `src/ai_signalbox/hosts/` | host adapters; `claude_code.py` is the only one |
 | `src/ai_signalbox/delivery/` | how a message reaches a session (`filebox.py`) |

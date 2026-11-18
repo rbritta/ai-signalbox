@@ -67,6 +67,7 @@ From a clone; there is no PyPI package. From 0.1.2 on, each
 | `note` | the calling session's status: `--item`, `--phase`, `--task`, `--target`, `--waiting`, `--pr`, `--done`, `--requested` |
 | `ask`, `ask --close N` | an ask of the session for the person (`--type`, `--alert`); no text lists them |
 | `send <workspace>`, `thread [id]` | the person's message (opens a thread); read a thread, write a turn, list the open ones |
+| `offer [workspace]`, `offers`, `claim <id>` | work an app or the person puts up for a workspace (or any); the open offers the session may take; take one, which becomes the message and thread a `send` would have made, exactly once (`offer --withdraw <id>` takes it back) |
 | `job <name>` | a long job with steps: `--steps a,b,c`, `--step`, `--wait session\|person`, `--end ok\|failed`, `--toggle` |
 | `flow` | the guide's flow, as signalbox reads it (`--json`) |
 | `hold <res> [why]`, `want`, `release` | leases: `--shared`, `--minutes`, `--wait SECONDS`, `--pid` for a script |

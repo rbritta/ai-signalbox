@@ -322,6 +322,24 @@ DEFAULT_TEXTS = {
     'ask.opened': 'ask #{n} ({type}{red}) on the card of {label}. Resolved: signalbox ask --close {n}',
     'ask.opened_red': ', red',
 
+    # offers: work put up for a session to claim
+    'offer.anyone': 'any workspace',
+    'offer.bad_id': 'invalid offer id (YYYYMMDD-HHMMSS-xxxxxx): {id}',
+    'offer.bad_workspace': 'invalid workspace: {workspace}',
+    'offer.empty': 'empty offer: give the work with --text-file <file>',
+    'offer.too_long': 'offer with {size} characters (cap {cap}): put the long part in a file and offer the summary with '
+                      'its path',
+    'offer.ev_open': 'for {to}: {title}',
+    'offer.ev_withdrawn': 'withdrawn: {title}',
+    'offer.log_open': '- {time} **{who} offers to {to}**\n  > {title}\n',
+    'offer.list_line': '{id}  for {to}, since {time}{by}: {title}',
+    'offer.list_by': ', from {who}',
+    'offer.none_open': 'no open offer for this session',
+    'offer.taken': 'offer {id} was already claimed by {workspace} {name} at {time}',
+    'offer.withdrawn': 'offer {id} was withdrawn at {time}',
+    'offer.unknown': 'offer {id} does not exist',
+    'offer.not_yours': 'offer {id} is for {workspace}, not for {mine}',
+
     # compaction: the status given back
     'compact.item': 'Item {item}, phase {phase}{task}{waiting}.',
     'compact.item_task': ', task {task}',
