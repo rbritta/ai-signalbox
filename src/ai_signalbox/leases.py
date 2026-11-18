@@ -9,6 +9,7 @@ mode), all under one lock.
 """
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import itertools
 import os
@@ -73,6 +74,16 @@ def caller(app, sessions, pid=None, as_=None):
         who.update(pid=pid, pid_started=app.procs.create_time(pid))
         who['as'] = as_
     return who
+
+
+@contextlib.contextmanager
+def _locked(app):
+    """The leases lock, required: a command that can't have it refuses, because going on without it could leave two
+    exclusive holders. (A hook goes on without a lock; taking a lease is never a hook's job.)"""
+    with app.store.leases_lock() as held:
+        if held is False:
+            raise app.refuse('lease.lock_timeout')
+        yield
 
 
 def overdue(data) -> bool:
@@ -146,7 +157,7 @@ def hold(app, res, why=None, minutes=None, shared=False, pid=None, as_=None, wai
     deadline = time.time() + float(wait) if wait else None
     queued = False
     while True:
-        with app.store.leases_lock():
+        with _locked(app):
             if queued:
                 sessions = app.live_sessions()
             current = lease(app, res, sessions)
@@ -216,7 +227,7 @@ def hold(app, res, why=None, minutes=None, shared=False, pid=None, as_=None, wai
 
 def hold_shared(app, res, why, mine, sessions):
     """Many at once. Refused while someone else holds it exclusively: the reads would see it half done."""
-    with app.store.leases_lock():
+    with _locked(app):
         current = lease(app, res, sessions)
         if current and current.get('alive') and not same(current, mine):
             raise app.refuse('lease.held_exclusive', res=res, holder=label(current), since=hhmm(current['since']),
@@ -240,7 +251,7 @@ def want(app, res, why=None, shared=False):
     current = lease(app, res, sessions)
     if current and same(current, mine):
         raise app.refuse('lease.already_yours', res=res)
-    with app.store.leases_lock():
+    with _locked(app):
         q = queue(app, res)
         if not any(same(w, mine) for w in q):
             q.append({**holder_fields(mine), 'why': why, 'mode': mode, 'since': now().isoformat()})

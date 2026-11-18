@@ -253,3 +253,21 @@ class PruneTest(Case):
         self.assertEqual([o['id'] for o in st.offer_list()], ['20260101-000000-ffffff'])
         self.assertEqual(self.cli('prune', '--days', '0.5')[0], 1)
         self.assertEqual(self.events('prune')[-1]['delivered'], 1)
+
+
+class LeaseLockTest(Case):
+    extra_toml = '[resources.app]\ndescription = "the app"\n'
+
+    def test_hold_refuses_without_the_lock(self):
+        import contextlib as cl
+        s = self.session('ws1')
+        self.act_as(s)
+
+        @cl.contextmanager
+        def busy():
+            yield False
+        self.app.store.leases_lock = busy
+        code, _, err = self.cli('hold', 'app', 'demo')
+        self.assertEqual(code, 1)
+        self.assertIn('locked by another command', err)
+        self.assertIsNone(self.app.store.get_lease('app'))

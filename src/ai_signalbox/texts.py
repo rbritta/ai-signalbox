@@ -285,6 +285,7 @@ DEFAULT_TEXTS = {
     'lease.the_queue': 'the queue ({waiting})',
     'lease.busy': 'busy: {res} is held by {holder} since {since} ({why}). Join the queue: signalbox want {res} --why "..."',
     'lease.locked': '{res} locked by {holder}',
+    'lease.lock_timeout': 'the leases are locked by another command for over 10 s: nothing changed, try again',
     'lease.queued': '{res} busy with {holder}; in the queue, waiting up to {wait} s',
     'lease.gave_up': 'gave up on {res} after {wait} s: still with {holder}',
     'lease.check': '{reason}',

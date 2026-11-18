@@ -63,6 +63,8 @@ All notable changes to this project are documented here. The format follows
 - `write_atomic` failed with `PermissionError` while a reader held the target on Windows, left its temp file behind,
   and named it by pid only (two `serve` threads collided). Leases, queues and shared users were written in place, so
   a reader could see half a file.
+- `hold` and `want` went on without the leases lock after 10 s of contention, so two sessions could both hold one
+  resource exclusively; they now refuse and change nothing.
 - A hook over a broken config or a missing plugin exited 1 with a traceback; it now prints one line and exits 0.
 - `idle_tick` handlers are called with `(app, data, who)`, as docs/PLUGINS.md says.
 - `serve` answers 400 to `?limit=abc` and to a body that is not a JSON object.
