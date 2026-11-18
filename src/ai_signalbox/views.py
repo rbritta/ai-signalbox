@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import sys
 import time
 
-from . import leases, priority, threads
+from . import leases, offers, priority, threads
 from .sessions import find_target, label, waiting_for_person
 from .status import guide_mark
 from .util import Refuse, aware, hhmm, local_hhmm, now, stamp
@@ -43,7 +44,7 @@ def board(app, as_json=False):
     names = list(dict.fromkeys(app.workspaces.all() + sorted({s['workspace'] for s in sessions})))
     data = {'at': now().isoformat(), 'you': mine and {k: mine.get(k) for k in ('workspace', 'name', 'sid')},
             'guide': g and g['version'], 'workspaces': [], 'priority': prio, 'resources': [], 'threads': [],
-            'inbox': app.store.inbox_pending()}
+            'offers': [], 'inbox': app.store.inbox_pending()}
     lines = [f"SIGNALBOX  {now():%Y-%m-%d %H:%M}   you: {label(mine)}   guide "
              f"{g['version'] if g else '(no flow block)'}\n", 'Sessions']
     for ws in names:
@@ -120,6 +121,10 @@ def board(app, as_json=False):
         for t in open_:
             lines.append(f"  {t.get('workspace'):5} {threads.line(app, t)}")
         data['threads'] = [threads.to_chat(app, t) for t in open_]
+    data['offers'] = offers.still_open(app)
+    if data['offers']:
+        lines.append('\nOpen offers (signalbox claim <id>, or claim --next)')
+        lines += [f'  {offers.line(app, o)}' for o in data['offers']]
     if data['inbox']:
         lines.append(f"\nInbox with notes for: {', '.join(data['inbox'])}")
     log = app.store.log_read(f'{now():%Y-%m-%d}')
@@ -132,6 +137,23 @@ def board(app, as_json=False):
     else:
         print('\n'.join(lines))
     return data
+
+
+def watch_board(app, seconds, as_json=False, rounds=None) -> int:
+    """`board --watch`: the board again every few seconds, the screen cleared in between, until Ctrl+C (or `rounds`,
+    for a test)."""
+    n = 0
+    try:
+        while rounds is None or n < rounds:
+            if not as_json and sys.stdout.isatty():
+                print('\x1b[2J\x1b[H', end='')
+            board(app, as_json)
+            n += 1
+            if rounds is None or n < rounds:
+                time.sleep(max(0.5, float(seconds)))
+    except KeyboardInterrupt:
+        pass
+    return 0
 
 
 def peek(app, target, as_json=False):

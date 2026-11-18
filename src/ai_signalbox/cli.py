@@ -71,6 +71,12 @@ def build_parser(app=None):
 
     c = cmd('board', 'everything at once')
     c.add_argument('--json', action='store_true')
+    c.add_argument('--watch', nargs='?', const=5.0, type=float, metavar='SECONDS',
+                   help='redraw every few seconds (default 5) until Ctrl+C')
+    c = cmd('prune', 'remove what is done and older than N days: delivered messages, closed threads, claimed and '
+                     'withdrawn offers, temp files')
+    c.add_argument('--days', type=float, required=True)
+    c.add_argument('--dry-run', action='store_true')
     c = cmd('peek', 'what one session (or workspace) is doing')
     c.add_argument('target')
     c.add_argument('--json', action='store_true')
@@ -235,7 +241,12 @@ def run(app, args) -> int:  # noqa: C901 - one dispatch table
     from . import hooks, inbox, jobs, leases, offers, priority, status, threads, views
     a = args
     if a.cmd in (None, 'board'):
+        if getattr(a, 'watch', None):
+            return views.watch_board(app, a.watch, as_json=a.json)
         views.board(app, getattr(a, 'json', False))
+    elif a.cmd == 'prune':
+        from . import prune
+        prune.prune(app, a.days, dry=a.dry_run)
     elif a.cmd == 'peek':
         views.peek(app, a.target, a.json)
     elif a.cmd == 'note':

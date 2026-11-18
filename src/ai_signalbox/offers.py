@@ -91,8 +91,24 @@ def offer(app, text, workspace=None, title=None, source=None, minutes=None, item
              expires_at=o.get('expires_at'))
     app.log_line(app.text('offer.log_open', time=f'{now():%H:%M:%S}', who=_who(app, source), to=for_whom(app, o),
                           title=title))
+    if (app.cfg.get('offers') or {}).get('notify'):
+        _notify(app, o)
     _out({'ok': True, 'id': o['id']}, echo)
     return o
+
+
+def _notify(app, o):
+    """`[offers] notify`: a notice in the box of the offer's workspace (or of every workspace), so an idle session
+    that listens wakes to it. Never raises."""
+    try:
+        targets = [o['workspace']] if o.get('workspace') else app.workspaces.all()
+        text = app.text('offer.notice', id=o['id'], to=for_whom(app, o), title=o.get('title'),
+                        by=app.text('offer.list_by', who=o['from']) if o.get('from') else '')
+        for ws in targets:
+            app.delivery.send({'id': new_id(), 'workspace': ws, 'sid': None, 'notice': 'offer',
+                               'from': o.get('from') or _who(app), 'text': text, 'at': now().isoformat()})
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _who(app, source=None) -> str:
@@ -182,6 +198,17 @@ def upkeep(app):
 def mine_open(app, workspace) -> list[dict]:
     """The open offers a session of this workspace may claim: its own and the ones for any workspace."""
     return [o for o in app.store.offer_list(OPEN) if o.get('workspace') in (None, workspace)]
+
+
+def still_open(app, workspace=None) -> list[dict]:
+    """The open offers that have not run out of time (for a view: it moves nothing). With a workspace, the ones a
+    session of it may claim. Never raises."""
+    try:
+        moment = now().astimezone()
+        found = app.store.offer_list(OPEN) if workspace is None else mine_open(app, workspace)
+        return [o for o in found if not (aware(o.get('expires_at') or '') or moment) < moment]
+    except Exception:  # noqa: BLE001
+        return []
 
 
 def line(app, o) -> str:

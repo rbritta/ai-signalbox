@@ -7,15 +7,19 @@ needs only `createChat(el, { store: restStore(url) })` from chat-thread.
     GET  /api/chat/<thread>?limit&before {messages}, oldest first
     POST /api/chat/<thread>   {text}    the person's turn in an open thread; the message, from 'me'
     POST /api/chat/<workspace> {text}   a new message to a workspace: opens a thread; the message, from 'me'
-    GET  /api/events                    text/event-stream: {thread, message} for each new turn
+    GET  /api/events                    text/event-stream: {thread, message} for each new turn; an `offer` event
+                                        (`event: offer`) {offer, action, state} when an offer opens, is claimed,
+                                        withdrawn, expires or comes back
+    GET  /api/offers?state=open|claimed|withdrawn   {offers}, oldest first
+    POST /api/offers {text, workspace?, title?, from?, minutes?, item?}   a new offer: the offer
+    POST /api/offers/<id>/withdraw      {ok, id, withdrawn_at}
+    POST /api/offers/<id>/claim {sid}   the session `sid` takes it: {ok, id, message, sid, title, text, item}
     PATCH, DELETE                       405: nothing is removed
 
-It is a plug, not an app: no pages of its own.
+It is a plug, not an app: no pages of its own. Nothing here prints: every command runs with `echo=False`.
 """
 from __future__ import annotations
 
-import contextlib
-import io
 import json
 import secrets
 import threading
@@ -23,10 +27,23 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import threads
+from . import offers, threads
 from .util import ID_RE, Refuse
 
 PREFIX = '/api/chat'
+OFFERS = '/api/offers'
+OFFER_STATES = (offers.OPEN, offers.CLAIMED, offers.WITHDRAWN)
+
+
+class BadRequest(ValueError):
+    """A request the API can't take: answered 400."""
+
+
+def _limit(value) -> int:
+    try:
+        return max(1, min(int(value), 1000))
+    except (TypeError, ValueError):
+        raise BadRequest(f'limit takes a number, not {value!r}') from None
 
 
 def list_threads(app):
@@ -45,20 +62,43 @@ def messages(app, tid, limit=200, before=None):
         idx = next((i for i, m in enumerate(msgs) if str(m['id']) == str(before)), None)
         if idx is not None:
             msgs = msgs[:idx]
-    return {'messages': msgs[-max(1, min(int(limit), 1000)):]}
+    return {'messages': msgs[-_limit(limit):]}
 
 
 def post(app, key, text):
     """The person's turn: in a thread when `key` is a thread id, else a new message to the workspace `key`."""
-    quiet = io.StringIO()
-    with contextlib.redirect_stdout(quiet):
-        if ID_RE.fullmatch(key):
-            threads.thread(app, key, text, from_person=True)
-            tid = key
-        else:
-            tid = threads.send(app, key, text)['id']
+    if ID_RE.fullmatch(key):
+        threads.thread(app, key, text, from_person=True, echo=False)
+        tid = key
+    else:
+        tid = threads.send(app, key, text, echo=False)['id']
     chat = threads.to_chat(app, threads.read(app, tid))
     return chat['messages'][-1]
+
+
+def list_offers(app, state=None):
+    state = state or offers.OPEN
+    if state not in OFFER_STATES:
+        raise BadRequest(f"state is one of {', '.join(OFFER_STATES)}")
+    if state == offers.OPEN:
+        offers.upkeep(app)
+    return {'offers': app.store.offer_list(state)}
+
+
+def post_offer(app, path, body):
+    """POST /api/offers (a new offer), /api/offers/<id>/withdraw, /api/offers/<id>/claim."""
+    parts = [p for p in path[len(OFFERS):].split('/') if p]
+    if not parts:
+        return offers.offer(app, body.get('text') or '', workspace=body.get('workspace'), title=body.get('title'),
+                            source=body.get('from'), minutes=body.get('minutes'), item=body.get('item'), echo=False)
+    if len(parts) == 2 and parts[1] == 'withdraw':
+        o = offers.withdraw(app, parts[0], echo=False)
+        return {'ok': True, 'id': o['id'], 'withdrawn_at': o['withdrawn_at']}
+    if len(parts) == 2 and parts[1] == 'claim':
+        if not body.get('sid'):
+            raise BadRequest('claim takes the sid of the session that takes the offer')
+        return offers.claim(app, parts[0], sid=str(body['sid']), echo=False)
+    raise LookupError('not found')
 
 
 class Server:
@@ -107,11 +147,15 @@ class Server:
                         return self._events()
                     if url.path.rstrip('/') == PREFIX:
                         return self._send(200, list_threads(server.app))
+                    if url.path.rstrip('/') == OFFERS:
+                        return self._send(200, list_offers(server.app, (q.get('state') or [None])[0]))
                     if url.path.startswith(PREFIX + '/'):
                         tid = unquote(url.path[len(PREFIX) + 1:]).strip('/')
                         return self._send(200, messages(server.app, tid, (q.get('limit') or [200])[0],
                                                         (q.get('before') or [None])[0]))
                     return self._send(404, {'error': 'not found'})
+                except BadRequest as err:
+                    return self._send(400, {'error': str(err)})
                 except Refuse as err:
                     return self._send(404, {'error': str(err)})
 
@@ -119,16 +163,25 @@ class Server:
                 url = urlparse(self.path)
                 if not self._authorized(parse_qs(url.query)):
                     return self._send(401, {'error': 'token required'})
-                if not url.path.startswith(PREFIX + '/'):
+                path = unquote(url.path).rstrip('/')
+                if not (path.startswith(PREFIX + '/') or path == OFFERS or path.startswith(OFFERS + '/')):
                     return self._send(404, {'error': 'not found'})
                 try:
                     size = int(self.headers.get('Content-Length') or 0)
                     body = json.loads(self.rfile.read(size).decode('utf-8') or '{}')
-                except ValueError:
+                except (ValueError, UnicodeDecodeError):
                     return self._send(400, {'error': 'invalid JSON'})
-                key = unquote(url.path[len(PREFIX) + 1:]).strip('/')
+                if not isinstance(body, dict):
+                    return self._send(400, {'error': 'the body is a JSON object'})
                 try:
-                    return self._send(200, post(server.app, key, body.get('text') or ''))
+                    if path == OFFERS or path.startswith(OFFERS + '/'):
+                        return self._send(200, post_offer(server.app, path, body))
+                    key = path[len(PREFIX) + 1:].strip('/')
+                    return self._send(200, post(server.app, key, str(body.get('text') or '')))
+                except BadRequest as err:
+                    return self._send(400, {'error': str(err)})
+                except LookupError as err:
+                    return self._send(404, {'error': str(err)})
                 except Refuse as err:
                     return self._send(409, {'error': str(err)})
 
@@ -149,6 +202,13 @@ class Server:
                     while True:
                         new, offset = server.app.events.read(offset)
                         for e in new:
+                            if e.get('kind') in ('offer', 'claim') and e.get('id'):
+                                payload = {'offer': e['id'], 'action': e.get('action') or 'claim',
+                                           'state': offers.CLAIMED if e['kind'] == 'claim' else {
+                                               'open': offers.OPEN, 'reopen': offers.OPEN}.get(e.get('action'),
+                                                                                                 offers.WITHDRAWN)}
+                                self.wfile.write(f"event: offer\ndata: {json.dumps(payload)}\n\n".encode('utf-8'))
+                                continue
                             if e.get('kind') == 'thread' and e.get('action') in ('open', 'turn', 'close'):
                                 t = server.app.store.get_thread(e.get('id'))
                                 if not t:

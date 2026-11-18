@@ -16,7 +16,7 @@ import time
 
 from . import priority
 from .sessions import holder_fields, label, same
-from .util import hhmm, now
+from .util import aware, hhmm, now
 
 SHARED, EXCLUSIVE = 'shared', 'exclusive'
 
@@ -75,10 +75,17 @@ def caller(app, sessions, pid=None, as_=None):
     return who
 
 
+def overdue(data) -> bool:
+    """A lease taken with `--minutes` whose time is up: the holder still has it, and the board says it is late."""
+    until = aware((data or {}).get('until') or '')
+    return bool(until) and until < now().astimezone()
+
+
 def lease(app, res, sessions):
     data = app.store.get_lease(res)
     if data:
         data['alive'] = is_alive(app, data, sessions)
+        data['overdue'] = overdue(data)
     return data
 
 
@@ -100,7 +107,9 @@ def holder_text(current) -> str:
         return 'free'
     mode = f" ({current['mode']})" if current.get('mode') else ''
     dead = '' if current.get('alive') else ' (ended: stale)'
-    return f"{label(current)}{mode} since {hhmm(current.get('since'))}{dead}: {current.get('why') or 'no reason'}"
+    late = f" (overdue since {hhmm(current['until'])})" if current.get('overdue') else ''
+    return (f"{label(current)}{mode} since {hhmm(current.get('since'))}{dead}{late}: "
+            f"{current.get('why') or 'no reason'}")
 
 
 def _checks(app, res, mine, current):

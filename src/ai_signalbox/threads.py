@@ -227,9 +227,10 @@ def send(app, workspace, text, sid=None, ask_n=None, source=None, echo=True, mid
     return out
 
 
-def thread(app, tid=None, text=None, from_person=False, close=False, sid=None, as_json=False):
+def thread(app, tid=None, text=None, from_person=False, close=False, sid=None, as_json=False, echo=True):
     """A thread the person opened: the session writes turns in it until the person closes it; the person's turns are
-    delivered to the session like a message, with the thread id in the header."""
+    delivered to the session like a message, with the thread id in the header. `echo=False` (`serve`): the person's
+    turn prints nothing."""
     if not tid:
         mine = app.who_of(sid)
         open_ = open_threads(app, mine['workspace'])
@@ -282,7 +283,8 @@ def thread(app, tid=None, text=None, from_person=False, close=False, sid=None, a
         app.emit('thread', None, f"{who} -> {t['workspace']}: {text}", action='turn', id=tid, n=n, by=PERSON,
                  to_workspace=t['workspace'], to_sid=to, message=msg['id'])
         out = {'ok': True, 'id': tid, 'n': n, 'message': msg['id']}
-        print(json.dumps(out))
+        if echo:
+            print(json.dumps(out))
         return out
     mine = app.who_of(sid)
     if t.get('workspace') != mine['workspace']:

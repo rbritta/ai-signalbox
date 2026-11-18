@@ -132,6 +132,7 @@ class Store:
     def put_snapshot(self, sid: str, data: dict) -> None: raise NotImplementedError
     def get_state(self, name: str) -> dict: raise NotImplementedError
     def put_state(self, name: str, data: dict) -> None: raise NotImplementedError
+    def prune(self, before: float, dry: bool = False) -> dict: raise NotImplementedError
     def path(self, *parts) -> Path:
         return self.root.joinpath(*parts)
 
@@ -459,3 +460,33 @@ class FileStore(Store):
 
     def put_state(self, name, data):
         write_atomic(self.root / 'state' / f'{name}.json', data)
+
+    # ------------------------------------------------------------ prune
+    def prune(self, before, dry=False):
+        """Remove what is done and older than the timestamp `before` (by the time its file was last written): the
+        delivered messages, the closed threads, the claimed and withdrawn offers, and temp files left by a crash.
+        Returns how many of each (with `dry`, how many it would remove)."""
+        def old(path):
+            try:
+                return path.stat().st_mtime < before
+            except OSError:
+                return False
+
+        def drop(paths):
+            n = 0
+            for path in paths:
+                if old(path):
+                    n += 1
+                    if not dry:
+                        path.unlink(missing_ok=True)
+            return n
+
+        out = {'delivered': drop(self.root.glob('box/*/delivered/*.json'))}
+        with self.threads_lock():
+            closed = [f for f in (self.root / 'threads').glob('*.json')
+                      if (read_json(f) or {}).get('state') == 'closed']
+            out['threads'] = drop(closed)
+        out['offers'] = drop(list(self.offer_dir('claimed').glob('*.json'))
+                             + list(self.offer_dir('withdrawn').glob('*.json')))
+        out['temp'] = drop(p for p in self.root.rglob('.*.tmp') if old(p))
+        return out

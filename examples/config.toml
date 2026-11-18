@@ -3,13 +3,17 @@
 
 root = "~/.signalbox/state"            # where the shared state lives ($SIGNALBOX_ROOT overrides it)
 
-plugins = ["builtin:git", "builtin:ports", "builtin:relay", "example_plugin"]
-plugin_paths = ["."]                   # where example_plugin.py lives
+plugins = ["builtin:git", "builtin:ports", "builtin:relay"]
+# With examples/example_plugin.py copied next to this file, add it:
+# plugins = ["builtin:git", "builtin:ports", "builtin:relay", "example_plugin"]
+# plugin_paths = ["."]                 # where example_plugin.py lives
 
 [workspaces]
 # One clone of the project per workspace: ~/src/ws1, ~/src/ws2, ... The same {pattern, name} rule names the windows
 # of claude-session-relay, so one rule serves both.
-rules = [{ pattern = '[\/]src[\/](ws\d+)(?:[\/]|$)', name = "$1" }]
+# A literal string (single quotes) keeps each backslash: [\\/] is a regex class of \ and /, so the rule matches
+# Windows and POSIX paths alike. Check it with `signalbox doctor`.
+rules = [{ pattern = '[\\/]src[\\/](ws\d+)(?:[\\/]|$)', name = "$1" }]
 glob = ["~/src/ws*"]
 
 [host]

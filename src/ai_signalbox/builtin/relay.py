@@ -93,17 +93,24 @@ class Relay:
         if mode == 'window':
             win_ok, win_err = self.request(ws, 'closeWindow', timeout=15)
         time.sleep(2)
-        stopped, alive = [], []
+        stopped, alive, left = [], [], []
         for item in [p for p in (procs or '').split(',') if p]:
             pid, _, started = item.partition(':')
-            if not app.procs.alive(pid, float(started) if started else None):
+            if not started:
+                # no start time to tell it apart: after the delay the pid may belong to another process by now
+                if app.procs.alive(pid):
+                    left.append(pid)
+                continue
+            if not app.procs.alive(pid, float(started)):
                 continue
             (stopped if app.procs.kill(int(pid)) else alive).append(pid)
+        alive += left
         result = 'ok' if tab_ok and win_ok is not False and not alive else 'partial' if tab_ok or stopped else 'failed'
         text = (f"tab {'closed' if tab_ok else f'did not close ({tab_err})'}"
                 + ('' if win_ok is None else f"; window {'closed' if win_ok else f'did not close ({win_err})'}")
                 + (f"; stopped pid {', '.join(stopped)}" if stopped else '')
-                + (f"; still alive: pid {', '.join(alive)}" if alive else ''))
+                + (f"; still alive: pid {', '.join(p for p in alive if p not in left)}" if set(alive) - set(left) else '')
+                + (f"; left running (no start time to check the pid against): pid {', '.join(left)}" if left else ''))
         app.emit('close', who, text, action='window', result=result, tab='closed' if tab_ok else 'failed',
                  tab_error=tab_err, window=None if win_ok is None else ('closed' if win_ok else 'failed'),
                  window_error=win_err, stopped=stopped or None, alive=alive or None)

@@ -115,6 +115,7 @@ DEFAULTS: dict = {
     },
     'relay': {'root': None, 'timeout': 20},  # claude-session-relay's inbox root (default: its own default)
     'serve': {'host': '127.0.0.1', 'port': 8765, 'token': None, 'allow_origin': None},
+    'offers': {'notify': False},        # a new offer is also a notice to the sessions of its workspace (or of all)
     'texts': {},
     'cli': {'stdout_refusals': []},     # text keys whose refusal prints on stdout (a state, not an error)
     'caps': {'text': 12000, 'result': 2000},

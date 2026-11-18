@@ -359,6 +359,9 @@ DEFAULT_TEXTS = {
     'offer.unknown': 'offer {id} does not exist',
     'offer.none_to_claim': 'no open offer for this session to claim',
     'offer.bad_minutes': '--minutes takes a positive number of minutes, not {minutes}',
+    'offer.notice': ('[offer {id} for {to}{by}] {title}\nTake it with `signalbox claim {id}` (or `signalbox claim '
+                     '--next`); `signalbox offers` lists the open ones.'),
+    'start.offers': 'Offers you may claim (`signalbox claim <id>`, or `claim --next`): {offers}',
     'offer.not_yours': 'offer {id} is for {workspace}, not for {mine}',
 
     # compaction: the status given back

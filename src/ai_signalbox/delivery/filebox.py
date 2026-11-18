@@ -186,7 +186,7 @@ class Filebox:
                 ticked = time.time()
                 for fn in self.app.registry.hook_handlers.get('idle_tick', []):
                     try:
-                        fn(self.app, {'session_id': sid, 'who': who})
+                        fn(self.app, {'session_id': sid, 'who': who}, who)
                     except Exception:  # noqa: BLE001
                         pass
             msgs = self.claim(workspace, sid)

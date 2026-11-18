@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import time
 
 try:  # pragma: no cover - depends on the environment
     import psutil  # type: ignore
@@ -187,7 +188,22 @@ def _fallback_alive(pid: int) -> bool:
         return False
 
 
+#: one process snapshot serves a command's lookups for this long (a parent chain walk asks many times)
+SNAPSHOT_TTL = 2.0
+_snapshot_cache: list = [0.0, None]
+
+
 def _win_snapshot():
+    """pid -> (ppid, exe name) for every process, taken once per `SNAPSHOT_TTL` seconds."""
+    at, data = _snapshot_cache
+    if data is not None and time.monotonic() - at < SNAPSHOT_TTL:
+        return data
+    data = _win_snapshot_now()
+    _snapshot_cache[:] = [time.monotonic(), data]
+    return data
+
+
+def _win_snapshot_now():
     import ctypes
     from ctypes import wintypes
 

@@ -63,7 +63,8 @@ def start(app, data):
         current = leases.lease(app, res, sessions)
         if current:
             mode = f" in {current['mode']} mode" if current.get('mode') else ''
-            held.append(f"{res}{mode} with {label(current)} since {hhmm(current['since'])}")
+            late = f", overdue since {hhmm(current['until'])}" if current.get('overdue') else ''
+            held.append(f"{res}{mode} with {label(current)} since {hhmm(current['since'])}{late}")
         if spec.get('shared'):
             us = leases.users(app, res, sessions)
             if us:
@@ -91,6 +92,10 @@ def start(app, data):
     open_ = threads.open_threads(app, ws)
     if open_:
         lines.append(t('start.threads_open', workspace=ws, threads='; '.join(threads.line(app, x) for x in open_)))
+    from . import offers
+    open_offers = offers.still_open(app, ws)
+    if open_offers:
+        lines.append(t('start.offers', offers='; '.join(f"{o['id']} {o.get('title')}" for o in open_offers)))
     delivered = {m.get('thread') for m in msgs}
     owed = [x for x in threads.owed(app, ws, sid, alive) if x['id'] not in delivered] if sid else []
     if owed:
