@@ -6,7 +6,6 @@ import time
 
 from helpers import Case
 
-from ai_signalbox import hooks
 from ai_signalbox.guard import Guard, executed
 from ai_signalbox.util import touch
 

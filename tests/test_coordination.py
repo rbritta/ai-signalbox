@@ -10,7 +10,7 @@ import unittest
 
 from helpers import Case
 
-from ai_signalbox import leases, priority
+from ai_signalbox import priority
 from ai_signalbox.util import now
 
 RESOURCES = '''

@@ -34,6 +34,10 @@ EXPECTED = [
     'signalbox job e2e --steps build,test',
     'signalbox job e2e --step test --done-file done.txt',
     'signalbox job e2e --end ok --done-file done.txt',
+    'signalbox offer --from tracker --text-file offer.txt',
+    'signalbox offers',
+    'signalbox claim --next',
+    'signalbox offers --history',
     'signalbox board',
     'signalbox peek ws2',
 ]

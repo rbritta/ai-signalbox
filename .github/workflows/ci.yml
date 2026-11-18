@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -13,6 +15,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      # ruff is CI tooling, not a dependency; its rules are in pyproject.toml.
+      - run: python -m pip install ruff
+      - run: ruff check .
+
   test:
     name: test (${{ matrix.os }}, Python ${{ matrix.python }})
     runs-on: ${{ matrix.os }}
@@ -20,7 +37,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python: ['3.12', '3.13']
+        python: ['3.12', '3.13', '3.14']
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,8 +59,10 @@ jobs:
       - name: The installed command runs
         run: signalbox --version
 
+      # The race tests (tests/test_races.py) start processes that meet at a barrier and claim one file together:
+      # exactly one must win, on Windows too.
       - name: Tests with coverage
         run: python -m coverage run --source=src/ai_signalbox -m unittest discover -s tests -t tests
 
-      - name: Coverage summary
-        run: python -m coverage report --skip-empty --sort=cover
+      - name: Coverage summary (fails under 80%)
+        run: python -m coverage report --skip-empty --sort=cover --fail-under=80

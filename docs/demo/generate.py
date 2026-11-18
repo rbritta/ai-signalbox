@@ -257,6 +257,15 @@ def scenario(run: Run) -> None:  # noqa: PLR0915 - one scripted story, step by s
     run.step('A job', 'The job ends', '', 'ws3', ['job', 'e2e', '--end', 'ok', '--done-file', 'done.txt'],
              {'done.txt': 'test ok: 48 passed'})
 
+    run.step('An offer', 'A tracker offers a piece of work to any workspace', 'An offer waits until a session takes '
+             'it; `--from` names who posted it.', PERSON, ['offer', '--from', 'tracker', '--text-file', 'offer.txt'],
+             {'offer.txt': 'Bump the date library to its latest patch and run the tests.'})
+    run.step('An offer', 'ws2 lists what it may claim', "Its own workspace's offers and the ones for any.", 'ws2',
+             ['offers'])
+    run.step('An offer', 'ws2 claims the oldest one', 'The claim becomes the message and thread a send would have '
+             'made, printed at once; of two sessions claiming together, one gets it.', 'ws2', ['claim', '--next'])
+    run.step('An offer', 'The person sees who took it', '', PERSON, ['offers', '--history'])
+
     run.step('The board', 'The person looks at the board', 'Every session, lease, queue and open thread at once '
              '(run outside any session, so `you` is `?`).', PERSON, ['board'], wide=True)
     run.step('The board', 'And peeks at one session', 'One card in full, with its open asks.', PERSON,

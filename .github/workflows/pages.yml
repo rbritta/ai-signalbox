@@ -1,9 +1,12 @@
 name: Demo
 
 # The live demo: docs/demo/generate.py runs its scenario against this commit's code and writes a static page of every
-# command and its real output, deployed to https://rbritta.github.io/ai-signalbox/demo/.
+# command and its real output, deployed to https://rbritta.github.io/ai-signalbox/demo/. It deploys only a commit of
+# main whose CI passed.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -16,11 +19,13 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-python@v5
         with:

@@ -33,3 +33,11 @@ Issues = "https://github.com/rbritta/ai-signalbox/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "W6", "B006", "B008", "B904"]
+ignore = ["E741"]                       # `l` for a line is this code base's habit

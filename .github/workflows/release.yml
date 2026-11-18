@@ -36,6 +36,13 @@ jobs:
           python -m pip install build
           python -m build
 
+      # The wheel that is published is the one checked: installed in a clean venv, its command reports the tag.
+      - name: Install the wheel and check its version
+        run: |
+          python -m venv /tmp/wheel-check
+          /tmp/wheel-check/bin/python -m pip install dist/*.whl
+          test "$(/tmp/wheel-check/bin/signalbox --version)" = "ai-signalbox ${GITHUB_REF_NAME#v}"
+
       - name: Publish the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
