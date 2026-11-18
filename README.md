@@ -77,7 +77,7 @@ works the same.
 
 | Command | |
 |---|---|
-| `board`, `peek <session>` | everything at once (`--watch`: redrawn every few seconds); what one session or workspace is doing |
+| `board`, `peek <session>` | everything at once (`--watch`: redrawn every few seconds); what one session or workspace is doing, with the offers it may claim and the ones it claimed |
 | `note` | the calling session's status: `--item`, `--phase`, `--task`, `--target`, `--waiting`, `--pr`, `--done`, `--requested` |
 | `ask`, `ask --close N` | an ask of the session for the person (`--type`, `--alert`); no text lists them |
 | `send <workspace>`, `thread [id]` | the person's message (opens a thread); read a thread, write a turn, list the open ones |

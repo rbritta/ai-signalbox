@@ -31,7 +31,7 @@ pip install -e .                                  # the signalbox command, runni
 python -m unittest discover -s tests -t tests     # the whole suite, offline (race tests included)
 ruff check .                                      # the lint CI runs (rules in pyproject.toml)
 python docs/demo/generate.py --site _site         # the demo page, in _site/demo/
-python scripts/release_notes.py v0.2.0            # the notes of a release
+python scripts/release_notes.py v0.2.1            # the notes of a release
 python -m ai_signalbox --help                     # the CLI from the checkout (what `signalbox` runs)
 ```
 

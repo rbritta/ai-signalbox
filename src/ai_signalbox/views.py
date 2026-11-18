@@ -190,6 +190,14 @@ def peek(app, target, as_json=False):
                                                           for a in c.get('asks') or []))
             if c.get('asks') and asks:  # an empty template leaves the line out
                 lines.append(asks)
+        may = offers.still_open(app, s['workspace'])
+        took = offers.claimed_by(app, s.get('sid'))
+        if may:
+            lines.append(app.text('peek.offers_open'))
+            lines += [f'  {offers.line(app, o)}' for o in may]
+        if took:
+            lines.append(app.text('peek.offers_claimed'))
+            lines += [f'  {offers.history_line(app, o)}' for o in took]
         for fn in app.registry.peek_sections:
             try:
                 lines += list(fn(app, s) or [])
@@ -205,7 +213,8 @@ def peek(app, target, as_json=False):
                 for ts, text in words:
                     lines.append(app.text('peek.words', at=ts, text=text))
         out.append({'session': {k: s.get(k) for k in ('workspace', 'name', 'sid', 'status')}, 'branch': br or None,
-                    'card': c, 'priority': pos, 'last_prompt': prompt, 'last_words': words, 'lines': lines})
+                    'card': c, 'priority': pos, 'offers': {'open': may, 'claimed': took}, 'last_prompt': prompt,
+                    'last_words': words, 'lines': lines})
         if not as_json:
             print('\n'.join(lines) + '\n')
     if as_json:

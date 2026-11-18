@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-signalbox"
-version = "0.2.0"
+version = "0.2.1"
 description = "A signal box for many AI coding sessions working side by side: who is who, what each is doing, shared resources, the workflow, and routing a message to the right session."
 readme = "README.md"
 license = "MIT"

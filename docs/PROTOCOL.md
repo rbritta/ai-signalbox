@@ -157,8 +157,9 @@ record gets `delivered: true`.
 `signalbox offer --withdraw <id>` moves an open offer to `offers/withdrawn/<id>.json` with `withdrawn_at`.
 `signalbox offers --history` lists the claimed and withdrawn ones. With `[offers] notify = true`, a new offer is also a
 notice (`notice: offer`) in the box of its workspace, or of every workspace, so an idle session that listens wakes to
-it. The board lists the open offers (`offers` in `board --json`), and the start context names the ones the session may
-claim.
+it. The board lists the open offers (`offers` in `board --json`), the start context names the ones the session may
+claim, and `peek` shows both the ones a session may claim and the ones it claimed (`offers: {open, claimed}` in
+`peek --json`).
 
 ## Sessions registered by hand
 

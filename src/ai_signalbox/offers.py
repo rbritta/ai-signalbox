@@ -255,18 +255,32 @@ def history(app, as_json=False, limit=20):
         print(json.dumps(done, ensure_ascii=False))
         return done
     for o in done:
-        day = when_day(o.get('when'))
-        when = f"{'' if day == 'today' else day + ' '}{local_hhmm(o.get('when'))}"
-        if o['state'] == CLAIMED:
-            print(app.text('offer.history_claimed', id=o['id'], when=when, workspace=o.get('claimed_workspace'),
-                           name=o.get('name') or '', title=o.get('title'),
-                           answered='' if _answered(app, o) else app.text('offer.history_unanswered')))
-        else:
-            print(app.text('offer.history_withdrawn', id=o['id'], when=when, title=o.get('title'),
-                           expired=app.text('offer.history_expired') if o.get('expired') else ''))
+        print(history_line(app, o))
     if not done:
         print(app.text('offer.none_done'))
     return done
+
+
+def history_line(app, o) -> str:
+    """One claimed or withdrawn offer, as `offers --history` and `peek` print it."""
+    when_iso = o.get('claimed_at') if o.get('sid') else o.get('withdrawn_at')
+    day = when_day(when_iso)
+    when = f"{'' if day == 'today' else day + ' '}{local_hhmm(when_iso)}"
+    if o.get('sid'):
+        return app.text('offer.history_claimed', id=o['id'], when=when, workspace=o.get('claimed_workspace'),
+                        name=o.get('name') or '', title=o.get('title'),
+                        answered='' if _answered(app, o) else app.text('offer.history_unanswered'))
+    return app.text('offer.history_withdrawn', id=o['id'], when=when, title=o.get('title'),
+                    expired=app.text('offer.history_expired') if o.get('expired') else '')
+
+
+def claimed_by(app, sid, limit=5) -> list[dict]:
+    """The offers a session claimed, the latest first (for a view: it moves nothing). Never raises."""
+    try:
+        mine = [o for o in app.store.offer_list(CLAIMED) if sid and o.get('sid') == sid]
+        return sorted(mine, key=lambda o: o.get('claimed_at') or '', reverse=True)[:limit]
+    except Exception:  # noqa: BLE001
+        return []
 
 
 def _not_open(app, oid) -> Refuse:

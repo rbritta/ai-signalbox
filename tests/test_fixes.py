@@ -271,3 +271,36 @@ class LeaseLockTest(Case):
         self.assertEqual(code, 1)
         self.assertIn('locked by another command', err)
         self.assertIsNone(self.app.store.get_lease('app'))
+
+
+class PeekOffersTest(Case):
+    def post(self, text, *argv):
+        code, out, err = self.cli('offer', *argv, '--text-file', self.write('o.txt', text))
+        self.assertEqual(code, 0, err)
+        return json.loads(out)['id']
+
+    def test_peek_shows_what_the_session_may_claim_and_what_it_claimed(self):
+        a = self.session('ws1', name='alpha')
+        self.tick(5)
+        taken = self.post('Fix the footer', 'ws1', '--from', 'app')
+        mine = self.post('Check the header', 'ws1')
+        other = self.post('For ws2 only', 'ws2')
+        anyone = self.post('For anyone')
+        self.act_as(a)
+        self.assertEqual(self.cli('claim', taken)[0], 0)
+        code, out, _ = self.cli('peek', 'alpha')
+        self.assertEqual(code, 0)
+        self.assertIn('offers it may claim (signalbox claim <id>, or claim --next):', out)
+        self.assertIn(f'  {mine}  for ws1', out)
+        self.assertIn(f'  {anyone}  for any workspace', out)
+        self.assertNotIn(other, out)
+        self.assertIn('offers it claimed:', out)
+        self.assertIn(f'  {taken}  claimed ', out)
+        self.assertIn('by ws1 alpha (not answered yet): Fix the footer', out)
+        j = json.loads(self.cli('peek', 'alpha', '--json')[1])[0]['offers']
+        self.assertEqual(([o['id'] for o in j['open']], [o['id'] for o in j['claimed']]), ([mine, anyone], [taken]))
+        code, out, _ = self.cli('peek', 'ws2')
+        self.assertIn(other, out, 'a workspace with no session: what a session of it may claim')
+        self.assertNotIn('offers it claimed', out)
+        self.act_as(None)
+        self.assertEqual(self.cli('offers', '--history')[1].count(taken), 1)

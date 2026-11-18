@@ -159,6 +159,8 @@ DEFAULT_TEXTS = {
     'peek.tasks': 'tasks: {tasks}',
     'peek.task': '{task} {phase} ({time})',
     'peek.asks': 'asks: {asks}',
+    'peek.offers_open': 'offers it may claim (signalbox claim <id>, or claim --next):',
+    'peek.offers_claimed': 'offers it claimed:',
     'peek.last_prompt': 'last prompt of the person ({at}): {text}',
     'peek.words': '--- {at}\n{text}',
     'peek.no_session': '(no session)',

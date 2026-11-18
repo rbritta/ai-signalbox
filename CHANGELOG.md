@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-18
+
+### Added
+- `peek` shows the offers a session may claim, in the board's wording, and the ones it claimed, in the wording of
+  `offers --history`; `peek --json` has them under `offers: {open, claimed}`. For a workspace with no session, the
+  ones a session of it may claim.
+
+### Changed
+- The workflows run on actions/checkout v7, actions/setup-python v7, actions/configure-pages v6,
+  actions/upload-pages-artifact v5 and actions/deploy-pages v5.
+
 ## [0.2.0] - 2026-11-17
 
 ### Added
@@ -145,7 +156,8 @@ First release.
   `note` prints the status; `[cli] stdout_refusals` lists the refusals that print on stdout, for callers that read a
   busy resource as a state; `[jobs] toggle_states` limits the states of a switch (`email = ["on", "off"]`).
 
-[Unreleased]: https://github.com/rbritta/ai-signalbox/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/rbritta/ai-signalbox/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/rbritta/ai-signalbox/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/rbritta/ai-signalbox/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/rbritta/ai-signalbox/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/rbritta/ai-signalbox/compare/v0.1.0...v0.1.1
