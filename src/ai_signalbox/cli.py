@@ -73,6 +73,22 @@ def build_parser(app=None):
     c.add_argument('--json', action='store_true')
     c.add_argument('--watch', nargs='?', const=5.0, type=float, metavar='SECONDS',
                    help='redraw every few seconds (default 5) until Ctrl+C')
+    c = cmd('doctor', 'check the config, plugins, workspace rule, root, hooks and Python in one go')
+    c.add_argument('--json', action='store_true')
+    c = cmd('init', 'write a first config: each folder next to this one is a workspace')
+    c.add_argument('--workspaces', help='the folder whose subfolders are the workspaces (default: the parent of here)')
+    c.add_argument('--root', help='where the shared state lives (default: ~/.signalbox/state)')
+    c.add_argument('--force', action='store_true', help='replace an existing config')
+    c.add_argument('--hooks', action='store_true', help='then install the hooks in the host settings')
+    c = cmd('register', 'register this terminal as a session of a tool with no hooks (Aider, Codex CLI, ...)')
+    c.add_argument('--name')
+    c.add_argument('--workspace')
+    c.add_argument('--tool')
+    c.add_argument('--pid', type=int, help="the process the session lives as long as (default: this command's parent)")
+    c = cmd('unregister', 'take a session registered by hand off (default: the one of this terminal)')
+    c.add_argument('--sid')
+    c = cmd('read', 'print the messages waiting for the calling session and take them out of the box')
+    c.add_argument('--sid', help=HIDDEN)
     c = cmd('prune', 'remove what is done and older than N days: delivered messages, closed threads, claimed and '
                      'withdrawn offers, temp files')
     c.add_argument('--days', type=float, required=True)
@@ -247,6 +263,30 @@ def run(app, args) -> int:  # noqa: C901 - one dispatch table
     elif a.cmd == 'prune':
         from . import prune
         prune.prune(app, a.days, dry=a.dry_run)
+    elif a.cmd == 'doctor':
+        from . import doctor
+        return doctor.doctor(app, as_json=a.json)
+    elif a.cmd == 'init':
+        import json
+        from . import doctor
+        out = doctor.init(path=getattr(a, 'config', None), workspaces=a.workspaces, root=a.root, force=a.force)
+        print(json.dumps(out))
+        if a.hooks:
+            from .app import App
+            from .config import Config
+            fresh = App(Config.load(out['config']))
+            settings = fresh.cfg.config_dirs[0] / 'settings.json'
+            command = f'"{sys.executable}" -m ai_signalbox --config "{out["config"]}"'
+            print(f"hooks installed in {settings}: {', '.join(fresh.host.install(settings, command))}")
+    elif a.cmd == 'register':
+        from . import manual
+        manual.register(app, name=a.name, workspace=a.workspace, pid=a.pid, tool=a.tool)
+    elif a.cmd == 'unregister':
+        from . import manual
+        manual.unregister(app, sid=a.sid)
+    elif a.cmd == 'read':
+        from . import manual
+        manual.read(app, sid=a.sid)
     elif a.cmd == 'peek':
         views.peek(app, a.target, a.json)
     elif a.cmd == 'note':

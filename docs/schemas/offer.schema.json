@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rbritta/ai-signalbox/blob/main/docs/schemas/offer.schema.json",
+  "title": "Offer",
+  "description": "offers/<id>.json (open), offers/claimed/<id>.json, offers/withdrawn/<id>.json.",
+  "type": "object",
+  "required": [
+    "id",
+    "workspace",
+    "title",
+    "text",
+    "at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^\\d{8}-\\d{6}-[0-9a-f]{6}$",
+      "description": "YYYYMMDD-HHMMSS-xxxxxx"
+    },
+    "workspace": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "title": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string"
+    },
+    "from": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "at": {
+      "type": "string",
+      "description": "local ISO 8601 time"
+    },
+    "item": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "expires_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "local ISO 8601 time"
+    },
+    "reopened": {
+      "type": "integer"
+    },
+    "reopened_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "local ISO 8601 time"
+    },
+    "claimed_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "local ISO 8601 time"
+    },
+    "sid": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "claimed_workspace": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "message": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "delivered": {
+      "type": "boolean"
+    },
+    "withdrawn_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "local ISO 8601 time"
+    },
+    "expired": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": true
+}

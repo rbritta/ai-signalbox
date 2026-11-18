@@ -38,7 +38,9 @@ class ClaudeCodeHost:
     # ------------------------------------------------------------ registry
     @property
     def registry_dirs(self):
-        return [d / 'sessions' for d in self.dirs]
+        """The host's session registries, then the one `signalbox register` writes (sessions of tools with no
+        hooks)."""
+        return [d / 'sessions' for d in self.dirs] + [self.app.store.root / 'sessions']
 
     @property
     def projects_dirs(self):
@@ -50,9 +52,12 @@ class ClaudeCodeHost:
         ws = self.app.workspaces.of(raw.get('cwd'))
         if not ws:
             return None
-        return {'sid': raw['sessionId'], 'workspace': ws, 'name': raw.get('name'), 'pid': raw.get('pid'),
-                'cwd': raw.get('cwd'), 'status': raw.get('status'), 'started_at': raw.get('startedAt'),
-                'status_updated_at': raw.get('statusUpdatedAt'), 'socket': raw.get('messagingSocketPath')}
+        s = {'sid': raw['sessionId'], 'workspace': ws, 'name': raw.get('name'), 'pid': raw.get('pid'),
+             'cwd': raw.get('cwd'), 'status': raw.get('status'), 'started_at': raw.get('startedAt'),
+             'status_updated_at': raw.get('statusUpdatedAt'), 'socket': raw.get('messagingSocketPath')}
+        if raw.get('host') == 'manual':
+            s.update(manual=True, tool=raw.get('tool'), proc_start=raw.get('procStart'))
+        return s
 
     def registry(self) -> list[dict]:
         """Every registered session inside a workspace, alive or not. No process scan: hooks must be quick."""
@@ -65,6 +70,8 @@ class ClaudeCodeHost:
         return out
 
     def is_alive(self, s) -> bool:
+        if s.get('manual'):  # registered by hand: alive while its process is (the same one, by its start time)
+            return bool(s.get('pid')) and self.app.procs.alive(s['pid'], s.get('proc_start'))
         name = self.app.procs.name(s.get('pid')) if s.get('pid') else None
         return bool(name) and self.proc_name in name.lower()
 

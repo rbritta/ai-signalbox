@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rbritta/ai-signalbox/blob/main/docs/schemas/event.schema.json",
+  "title": "Event",
+  "description": "One line of events.jsonl (docs/PROTOCOL.md, \"The event log\").",
+  "type": "object",
+  "required": [
+    "ts",
+    "kind",
+    "src"
+  ],
+  "properties": {
+    "ts": {
+      "type": "string",
+      "description": "local ISO 8601 time"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "src": {
+      "type": "string",
+      "enum": [
+        "cli",
+        "hook",
+        "transcript"
+      ]
+    },
+    "workspace": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "sid": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 240
+    },
+    "action": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

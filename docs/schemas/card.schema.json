@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rbritta/ai-signalbox/blob/main/docs/schemas/card.schema.json",
+  "title": "Status card",
+  "description": "status/<sid>.json: what a session works on (docs/PROTOCOL.md).",
+  "type": "object",
+  "required": [],
+  "properties": {
+    "workspace": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "item": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "phase": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "waiting": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "text": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "done": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "done_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "local ISO 8601 time"
+    },
+    "task": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tasks": {
+      "type": "object"
+    },
+    "saved_tasks": {
+      "type": "object"
+    },
+    "target": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "targets": {
+      "type": "object"
+    },
+    "saved_targets": {
+      "type": "object"
+    },
+    "guide": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "requested": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "off_guide": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "pr": {
+      "type": [
+        "string",
+        "integer",
+        "null"
+      ]
+    },
+    "pr_repo": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "pr_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "asks": {
+      "type": "array"
+    },
+    "ask_seq": {
+      "type": "integer"
+    },
+    "jobs": {
+      "type": "array"
+    },
+    "updated": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "local ISO 8601 time"
+    }
+  },
+  "additionalProperties": true
+}

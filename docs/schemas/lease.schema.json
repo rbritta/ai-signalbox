@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rbritta/ai-signalbox/blob/main/docs/schemas/lease.schema.json",
+  "title": "Lease",
+  "description": "leases/<res>.json: who holds a resource.",
+  "type": "object",
+  "required": [
+    "res",
+    "since"
+  ],
+  "properties": {
+    "res": {
+      "type": "string"
+    },
+    "workspace": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sid": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "pid": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "pid_started": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "as": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "item": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "why": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "mode": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "shared",
+        "exclusive",
+        null
+      ]
+    },
+    "since": {
+      "type": "string",
+      "description": "local ISO 8601 time"
+    },
+    "until": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "local ISO 8601 time"
+    }
+  },
+  "additionalProperties": true
+}

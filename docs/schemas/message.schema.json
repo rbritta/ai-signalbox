@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rbritta/ai-signalbox/blob/main/docs/schemas/message.schema.json",
+  "title": "Box message",
+  "description": "box/<workspace>/<id>.json: a message waiting for a session; in delivered/ once a session took it.",
+  "type": "object",
+  "required": [
+    "id",
+    "workspace",
+    "text",
+    "at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^\\d{8}-\\d{6}-[0-9a-f]{6}$",
+      "description": "YYYYMMDD-HHMMSS-xxxxxx"
+    },
+    "workspace": {
+      "type": "string"
+    },
+    "sid": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ask": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "ask_text": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ask_type": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "text": {
+      "type": "string"
+    },
+    "at": {
+      "type": "string",
+      "description": "local ISO 8601 time"
+    },
+    "thread": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "turn": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "from": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "notice": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "delivered_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "local ISO 8601 time"
+    },
+    "to_sid": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "from_sid": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": true
+}

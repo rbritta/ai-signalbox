@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rbritta/ai-signalbox/blob/main/docs/schemas/session.schema.json",
+  "title": "Session registered by hand",
+  "description": "<root>/sessions/<pid>.json, written by `signalbox register`, in the shape of the host registry.",
+  "type": "object",
+  "required": [
+    "pid",
+    "sessionId",
+    "cwd",
+    "host"
+  ],
+  "properties": {
+    "pid": {
+      "type": "integer"
+    },
+    "sessionId": {
+      "type": "string"
+    },
+    "cwd": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "startedAt": {
+      "type": "integer"
+    },
+    "statusUpdatedAt": {
+      "type": "integer"
+    },
+    "host": {
+      "const": "manual"
+    },
+    "tool": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "procStart": {
+      "type": [
+        "number",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": true
+}

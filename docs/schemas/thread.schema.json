@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rbritta/ai-signalbox/blob/main/docs/schemas/thread.schema.json",
+  "title": "Thread",
+  "description": "threads/<id>.json: a conversation the person opened with a workspace.",
+  "type": "object",
+  "required": [
+    "id",
+    "workspace",
+    "state",
+    "turns"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^\\d{8}-\\d{6}-[0-9a-f]{6}$",
+      "description": "YYYYMMDD-HHMMSS-xxxxxx"
+    },
+    "workspace": {
+      "type": "string"
+    },
+    "sid": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "open",
+        "closed"
+      ]
+    },
+    "opened_at": {
+      "type": "string",
+      "description": "local ISO 8601 time"
+    },
+    "closed_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "local ISO 8601 time"
+    },
+    "closed_by": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ask": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "ask_text": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "turns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "n",
+          "from",
+          "at",
+          "text"
+        ],
+        "properties": {
+          "n": {
+            "type": "integer"
+          },
+          "from": {
+            "type": "string",
+            "enum": [
+              "person",
+              "session"
+            ]
+          },
+          "at": {
+            "type": "string",
+            "description": "local ISO 8601 time"
+          },
+          "text": {
+            "type": "string"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sid": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}
