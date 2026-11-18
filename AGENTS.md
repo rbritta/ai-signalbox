@@ -27,9 +27,11 @@ standard library only in the core.
 ## Commands
 
 ```
-python -m unittest discover -s tests -t tests     # the whole suite, offline
+pip install -e .                                  # the signalbox command, running this checkout
+python -m unittest discover -s tests -t tests     # the whole suite, offline (race tests included)
+ruff check .                                      # the lint CI runs (rules in pyproject.toml)
 python docs/demo/generate.py --site _site         # the demo page, in _site/demo/
-python scripts/release_notes.py v0.1.2            # the notes of a release
+python scripts/release_notes.py v0.2.0            # the notes of a release
 python -m ai_signalbox --help                     # the CLI from the checkout (what `signalbox` runs)
 ```
 
@@ -42,12 +44,16 @@ python -m ai_signalbox --help                     # the CLI from the checkout (w
   `SIGNALBOX_CONFIG` and `CLAUDE_CONFIG_DIR` for the commands it runs.
 - The files under the state root are a contract ([docs/PROTOCOL.md](docs/PROTOCOL.md)): a field or event kind changes
   only with a CHANGELOG line, and readers must keep accepting what older writers wrote.
-- Wording lives in `texts.py` under a key, so a deployment can override it; code does not build user-facing sentences
-  inline.
+- Wording lives in `texts.py` under a key, so a deployment can override it. New sentences go there; some older lines
+  of the board, the threads, `close` and `serve` are still built inline and move to keys when they are touched.
 - Hooks never fail the host: an error is one line on stderr and exit 0. The guard only denies, never prompts.
-- Writes go through `util.write_json` / `write_atomic` (temp file and rename), except the watched files, which are
-  rewritten in place.
-- Free text reaches the CLI from a file (`--text-file`), never from the shell line.
+- Shared records (cards, leases, queues, threads, messages, offers) are written with `util.write_atomic` (a temp file
+  unique per process and thread, renamed over the target, retried while a Windows reader holds it); the watched files
+  are rewritten in place.
+- A claim (a message to `delivered/`, an offer to `claimed/` or `withdrawn/`) goes through `store.claim_file`: a lock
+  decides, because on Windows a bare rename lets every racer win. `tests/test_races.py` holds it.
+- Free text reaches the CLI from a file (`--text-file`, `-` for stdin), never from the shell line of the commands in
+  `[guard] text_commands`.
 - Nothing deployment-specific belongs here: no organization, product, people, paths or private tools in code, tests,
   docs or examples. That goes in a site plugin.
 - The version lives in `pyproject.toml` and `src/ai_signalbox/__init__.py`, and `CHANGELOG.md` has its section; a

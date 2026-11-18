@@ -36,10 +36,27 @@ plugin_paths = ["~/my-site"]
 | `api.start_lines(fn)` | `fn(app, who, sessions) -> lines` in every session's start context |
 | `api.on_hook(event, fn)` | `fn(app, data, who)` on a hook; for `prompt`, a returned string is printed into the session; `idle_tick` runs every 10 s in the idle vigil; `wake` runs before a touched file is looked at |
 | `api.text(key, template)` | overrides a wording ([texts.py](../src/ai_signalbox/texts.py) lists the keys; `[texts]` in the config wins over plugins) |
-| `api.store(factory)` | `factory(app) -> Store`: keep the state in another layout (an existing deployment keeps its files) |
+| `api.store(factory)` | `factory(app) -> Store`: keep the state in another layout (an existing deployment keeps its files); see "A store" below |
 | `api.delivery(factory)` | `factory(app)` with `send`, `claim`, `deliver`, `listens`, `keeps_with`, `release`, `wake_text`, `vigil` |
 | `api.window(controller)` | the window control of `close`: `plan_close(app, ctx) -> (lines, closes)` and `close_later(...)` |
 | `api.host(kind, factory)` | a host adapter for another AI coding tool (`[host] type = kind`) |
+
+## A store
+
+A store subclasses `ai_signalbox.store.Store` (or `FileStore`, overriding only what it maps elsewhere) and implements:
+the locks (`status_lock`, `leases_lock`, `threads_lock`, `status_lock_depth`); the events (`append_event`,
+`read_events`, `scan_events`, `events_size`, `tail_events`); cards (`get_status`, `put_status`, `list_status`);
+leases (`get_lease`, `put_lease`, `get_queue`, `put_queue`, `get_shared`, `put_shared`); `get_priority`,
+`put_priority`; threads (`get_thread`, `put_thread`, `list_threads`); the box (`box_put`, `box_list`, `box_claim`,
+`box_update`, `delivered`, `signal_path`, `start_path`, `woke_path`, `vigil_path`); offers (`offer_put`, `offer_get`,
+`offer_list`, `offer_move(oid, src, dst, extra, drop=())`, `offer_update`); requests (`get_request`, `put_request`,
+`list_requests`); the inbox and the log (`inbox_append`, `inbox_take`, `inbox_pending`, `log_append`, `log_read`);
+`get_snapshot`, `put_snapshot`, `get_state`, `put_state`; and `prune(before, dry)`.
+
+A claim must be decided by a lock, not by a rename alone: on Windows, processes renaming one file at the same time can
+all succeed. `store.claim_file(src, dst, update, lock)` does it (read again inside the lock, rename, write the claimed
+record atomically) and is what `FileStore.box_claim` and `offer_move` use; a store with its own layout calls it with its
+own paths.
 
 ## Close steps
 

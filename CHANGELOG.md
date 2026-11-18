@@ -6,17 +6,76 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-17
+
 ### Added
 - Offers: work an app or the person puts up for a session to take, with the same delivery as a push.
   `signalbox offer [workspace] --text-file <file>` posts it for a workspace or for any (`--title`, `--from`,
-  `--withdraw <id>`), `signalbox offers` lists the open ones the calling session may take, and `signalbox claim <id>`
-  takes one: it becomes the message and thread a `send` to that session would have made, exactly once (an atomic
-  rename into `offers/claimed/`, and the offer goes back to open when the send fails). New files `offers/`, new event
-  kinds `offer` and `claim` (docs/PROTOCOL.md, "Offers").
+  `--minutes` to expire it, `--item` to move the claiming session's card), `signalbox offers` lists the open ones the
+  calling session may take (outside a session, all of them; `--history` the claimed and withdrawn), and
+  `signalbox claim <id>` or `claim --next` takes one: it becomes the message and thread a `send` to that session would
+  have made, once, and the claim prints it. An offer whose claimer ended without answering comes back to open;
+  `offer --withdraw <id>` takes one back. New files `offers/`, new event kinds `offer` and `claim`
+  (docs/PROTOCOL.md, "Offers"). They show on the board (`offers` in `board --json`), in the start context, and over
+  `serve` (`GET/POST /api/offers`, `POST /api/offers/<id>/claim|withdraw`, an `offer` event on `/api/events`);
+  `[offers] notify = true` also sends a notice to the sessions of the workspace.
+- `signalbox doctor`: the config, the plugins, the workspace rule against this folder and every registered session,
+  the root, temp files left by a crash, the hooks, psutil and the Python version, in one go.
+- `signalbox init`: a first config for the machine, every folder next to this one a workspace (`--hooks` also installs
+  the hooks).
+- Sessions of tools with no hooks (Aider, Codex CLI, a plain terminal): `signalbox register` puts one on the board,
+  alive while its process is; `signalbox read` prints and takes what was sent to it; `signalbox unregister`.
+- `signalbox prune --days N`: removes delivered messages, closed threads, claimed and withdrawn offers and temp files
+  older than N days (`--dry-run` counts them).
+- `signalbox board --watch [SECONDS]`: the board, redrawn until Ctrl+C.
+- A lease past its `--minutes` is marked overdue on the board, in `board --json` (`overdue`) and in the start context.
+- JSON Schemas of the protocol files in `docs/schemas/` (card, lease, message, thread, offer, event, session); a test
+  validates the records the code writes against them.
+- `--text-file -` reads stdin, in every command that takes a text file.
+- Race tests: processes meeting at a barrier claim one message, or one offer (and claim against withdraw), together;
+  exactly one wins, on the Windows leg of CI too.
+- CI: ruff (rules in pyproject.toml), a coverage floor of 80%, Python 3.14; the release installs the wheel it built
+  and checks that `signalbox --version` names the tag.
+
+### Changed
+- The `Store` interface has `offer_put`, `offer_get`, `offer_list`, `offer_move(oid, src, dst, extra, drop=())`,
+  `offer_update` and `prune(before, dry)`: a store registered with `api.store` that does not subclass `FileStore`
+  implements them. `store.claim_file` is the claim a store with its own layout calls.
+- `threads.send` takes `echo`, `mid` and `progress`, and `threads.thread` takes `echo`: `serve` and the offers no
+  longer redirect stdout (which was not safe between `serve`'s threads).
+- File locks are tried every 10 ms (Windows used `LK_LOCK`, which waits a whole second between tries); the locked
+  byte is the same, so older tools keep interleaving. A claim refuses instead of going on without the lock.
+- `send`, `offer` and `inbox` normalize a workspace name the way `[workspaces] lowercase` says.
+- The guard's `text_commands` include `offer`.
+- The demo deploys only after CI passed on main, and shows an offer claimed.
+- Package classifiers: Python 3.12 to 3.14, Alpha, console, developers, Windows and POSIX.
 
 ### Fixed
-- The live demo page declares its own icon, so the browser no longer asks the site root for a missing
-  `favicon.ico` (one 404 in the console on the first load).
+- Windows: processes renaming the same file at the same time can all succeed, so a message in the box, or an offer,
+  could go to several sessions at once (16 of 20 offers had two or more winners in a race test). A lock now decides,
+  reading the source again inside it.
+- An offer whose send failed after the box had the message went back to open and was delivered twice; one put back
+  by two writes could be open and claimed at once; an interrupt between the move and the send left it claimed with
+  no message. Now the message takes the offer's id, a failure after the box keeps the claim, the same session
+  claiming again gets the same message, and the way back is one move.
+- A claimer that lost the race to a Windows sharing violation read "does not exist" or "claimed by None": a rename
+  blocked by a reader is retried, and the refusal says the offer is being claimed.
+- `write_atomic` failed with `PermissionError` while a reader held the target on Windows, left its temp file behind,
+  and named it by pid only (two `serve` threads collided). Leases, queues and shared users were written in place, so
+  a reader could see half a file.
+- A hook over a broken config or a missing plugin exited 1 with a traceback; it now prints one line and exits 0.
+- `idle_tick` handlers are called with `(app, data, who)`, as docs/PLUGINS.md says.
+- `serve` answers 400 to `?limit=abc` and to a body that is not a JSON object.
+- `builtin:relay` no longer kills a pid it has no start time for: after the delay it may be another process.
+- `[workspaces] lowercase = false` was ignored by `send` and `offer`; `inbox WS1` did not find `ws1`.
+- Messages of the same second came out of the box in name order: now by the time they were written.
+- Without psutil on Windows, every parent or name lookup took a full process snapshot: one serves a command for 2 s.
+- The reentrant status lock counted depth per process, not per thread.
+- The example config: its workspace rule `[\/]` matched only `/` (no session on Windows got a workspace), and it
+  listed `example_plugin`, which the quick start did not copy, so every command failed. The plugin is commented out
+  and a test loads the example and matches both path styles.
+- The README promised the guard keeps all free text out of the shell; it now says which commands, and how to install
+  without a clone.
 
 ## [0.1.2] - 2026-11-14
 
@@ -84,7 +143,8 @@ First release.
   `note` prints the status; `[cli] stdout_refusals` lists the refusals that print on stdout, for callers that read a
   busy resource as a state; `[jobs] toggle_states` limits the states of a switch (`email = ["on", "off"]`).
 
-[Unreleased]: https://github.com/rbritta/ai-signalbox/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/rbritta/ai-signalbox/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/rbritta/ai-signalbox/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/rbritta/ai-signalbox/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/rbritta/ai-signalbox/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/rbritta/ai-signalbox/releases/tag/v0.1.0
