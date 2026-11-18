@@ -1,41 +1,46 @@
 """File locks shared by every process that writes the state root.
 
-Windows: `msvcrt.locking` on one byte at offset 0 with `LK_LOCK`, which retries for about 10 s and then raises.
-POSIX: `fcntl.flock`, retried for 10 s. When the lock can't be had, the caller goes on without it: a racy write beats a
-stuck hook. The primitive must not change on Windows, so older tools that lock the same files keep interleaving safely.
+Windows: `msvcrt.locking` on one byte at offset 0, tried every 10 ms for 10 s (`LK_NBLCK`: the same lock `LK_LOCK`
+takes, without its one-second wait between tries). POSIX: `fcntl.flock`, tried the same way. When the lock can't be
+had, a hook goes on without it (a racy write beats a stuck hook) and a command refuses (`required=True`: two exclusive
+holders of one lease are worse than a retry). The locked byte must not change on Windows, so older tools that lock the
+same files keep interleaving safely.
 """
 from __future__ import annotations
 
 import contextlib
 import os
+import threading
 import time
 from pathlib import Path
 
-POSIX_RETRY_SECONDS = 10.0
+RETRY_SECONDS, RETRY_WAIT = 10.0, 0.01
 
 
 def _lock(fh) -> bool:
+    """Try the lock every few milliseconds for up to 10 s (`LK_LOCK` would wait a whole second between tries)."""
     if os.name == 'nt':
         try:
             import msvcrt
-            fh.seek(0)
-            msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)  # retries for 10 s, then OSError
-            return True
-        except (ImportError, OSError):
+        except ImportError:
             return False
-    try:
-        import fcntl
-    except ImportError:
-        return False
-    deadline = time.monotonic() + POSIX_RETRY_SECONDS
+        try_lock = lambda: msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)  # noqa: E731
+        fh.seek(0)
+    else:
+        try:
+            import fcntl
+        except ImportError:
+            return False
+        try_lock = lambda: fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)  # noqa: E731
+    deadline = time.monotonic() + RETRY_SECONDS
     while True:
         try:
-            fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            try_lock()
             return True
         except OSError:
             if time.monotonic() >= deadline:
                 return False
-            time.sleep(0.05)
+            time.sleep(RETRY_WAIT)
 
 
 def _unlock(fh) -> None:
@@ -48,13 +53,20 @@ def _unlock(fh) -> None:
     fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
 
 
+class LockTimeout(OSError):
+    """The lock was required and could not be had in time."""
+
+
 @contextlib.contextmanager
-def file_lock(path):
-    """Hold the lock file `path` for the block. Yields whether the lock was really held."""
+def file_lock(path, required=False):
+    """Hold the lock file `path` for the block. Yields whether the lock was really held; with `required`, raises
+    `LockTimeout` instead of running the block without it."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, 'a+b') as fh:
         held = _lock(fh)
+        if required and not held:
+            raise LockTimeout(f'could not lock {path.name}')
         try:
             yield held
         finally:
@@ -62,27 +74,34 @@ def file_lock(path):
                 _unlock(fh)
 
 
-_depth: dict[str, int] = {}
+_local = threading.local()
+
+
+def _depths() -> dict[str, int]:
+    if not hasattr(_local, 'depth'):
+        _local.depth = {}
+    return _local.depth
 
 
 @contextlib.contextmanager
 def reentrant_lock(path):
-    """`file_lock`, reentrant inside one process: a command that writes a status card may call another that does."""
-    key = str(Path(path))
-    if _depth.get(key):
-        _depth[key] += 1
+    """`file_lock`, reentrant inside one thread: a command that writes a status card may call another that does. Two
+    threads (`serve`) each take the file lock."""
+    key, depths = str(Path(path)), _depths()
+    if depths.get(key):
+        depths[key] += 1
         try:
             yield True
         finally:
-            _depth[key] -= 1
+            depths[key] -= 1
         return
     with file_lock(path) as held:
-        _depth[key] = 1
+        depths[key] = 1
         try:
             yield held
         finally:
-            _depth[key] = 0
+            depths[key] = 0
 
 
 def depth(path) -> int:
-    return _depth.get(str(Path(path)), 0)
+    return _depths().get(str(Path(path)), 0)

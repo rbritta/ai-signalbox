@@ -5,6 +5,8 @@ import datetime as dt
 import json
 import os
 import re
+import threading
+import time
 import unicodedata
 from pathlib import Path
 
@@ -106,13 +108,34 @@ def write_json(path, data) -> None:
     path.write_text(dumps(data), encoding='utf-8')
 
 
+#: how often, and how far apart, a rename blocked by a reader holding the file open on Windows is retried
+RENAME_RETRIES, RENAME_WAIT = 40, 0.025
+
+
+def replace_retrying(src, dst) -> None:
+    """`os.replace`, retried while Windows refuses it because another process has the file open (`PermissionError`).
+    A missing source (`FileNotFoundError`) is not retried."""
+    for attempt in range(RENAME_RETRIES):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if attempt == RENAME_RETRIES - 1:
+                raise
+            time.sleep(RENAME_WAIT)
+
+
 def write_atomic(path, data) -> None:
-    """Write to a temp file and rename over the target: a reader never sees half a file."""
+    """Write to a temp file and rename over the target: a reader never sees half a file. The temp name is unique per
+    process and thread, and it never stays behind."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.parent / f'.{path.name}.{os.getpid()}.tmp'
-    tmp.write_text(dumps(data), encoding='utf-8')
-    os.replace(tmp, path)
+    tmp = path.parent / f'.{path.name}.{os.getpid()}-{threading.get_ident()}-{os.urandom(2).hex()}.tmp'
+    try:
+        tmp.write_text(dumps(data), encoding='utf-8')
+        replace_retrying(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def touch(path, text: str = '') -> None:

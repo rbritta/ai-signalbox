@@ -13,6 +13,9 @@ import re
 from pathlib import Path
 
 
+NAME_RE = re.compile(r'[\w.-]{1,64}')
+
+
 class Workspaces:
     def __init__(self, cfg):
         ws = cfg['workspaces']
@@ -25,6 +28,19 @@ class Workspaces:
 
     def _norm(self, name):
         return name.lower() if (name and self.lower) else name
+
+    def norm(self, name):
+        """A workspace name the way the commands take it: lowercased unless `[workspaces] lowercase = false`."""
+        return self._norm((name or '').strip())
+
+    def valid(self, name) -> bool:
+        """A known workspace, or a name a workspace could have."""
+        return bool(name) and (name in self.all() or bool(NAME_RE.fullmatch(name)))
+
+    def known(self, name) -> bool:
+        """Whether the name is one of the workspaces found (False when none is found: nothing to compare with)."""
+        found = self.all()
+        return not found or name in found
 
     def roots(self) -> dict[str, Path]:
         out = {}

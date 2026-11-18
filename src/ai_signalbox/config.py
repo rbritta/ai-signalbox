@@ -93,7 +93,7 @@ DEFAULTS: dict = {
         'yes': r'^\s*(ok|yes|go|approved|allowed)\b',
         'but': r'\b(no|not|wait|stop|hold)\b',
         'cli_names': ['signalbox'],
-        'text_commands': ['ask', 'thread', 'post', 'send', 'request', 'close'],
+        'text_commands': ['ask', 'thread', 'post', 'send', 'request', 'close', 'offer'],
         'read_only': r'^\s*(grep|rg|cat|sed|head|tail|less|Select-String|Get-Content|findstr)\b',
     },
     'close': {

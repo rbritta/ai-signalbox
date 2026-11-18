@@ -13,7 +13,7 @@ def post(app, workspace, text):
     event text; its file and the event's `to_workspace` are lower case."""
     if not (text or '').strip():
         raise Refuse(app.text('inbox.empty_note'))
-    ws = workspace.lower()
+    ws = app.workspaces.norm(workspace)
     mine = app.me()
     app.store.inbox_append(ws, app.text('inbox.note_line', date=f'{now():%Y-%m-%d %H:%M}', who=label(mine), text=text))
     app.log_line(app.text('inbox.log_line', time=f'{now():%H:%M:%S}', who=label(mine), workspace=workspace, text=text))
@@ -22,7 +22,7 @@ def post(app, workspace, text):
 
 
 def inbox(app, workspace=None):
-    workspace = workspace or app.workspaces.of(os.getcwd())
+    workspace = app.workspaces.norm(workspace) if workspace else app.workspaces.of(os.getcwd())
     if not workspace:
         raise Refuse(app.text('inbox.no_workspace'))
     text = app.store.inbox_take(workspace)

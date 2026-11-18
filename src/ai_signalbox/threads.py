@@ -179,13 +179,14 @@ def to_chat(app, t) -> dict:
 
 # ---------------------------------------------------------------- the person's side
 
-def send(app, workspace, text, sid=None, ask_n=None, source=None, echo=True):
+def send(app, workspace, text, sid=None, ask_n=None, source=None, echo=True, mid=None, progress=None):
     """The person's message to a workspace: one file in its box, picked up by the session's hooks; it opens a thread
     with the message's id. With no sid: a live session that listens, the newest card first, then the newest start;
     none listening, no owner, and the first session of the workspace that can takes it. `echo=False`: the caller
-    (a claimed offer) prints its own answer."""
-    workspace = (workspace or '').lower()
-    if workspace not in app.workspaces.all() and not re.fullmatch(r'[\w.-]{1,64}', workspace):
+    (a claimed offer, `serve`) prints its own answer. `mid`: the message's id (a claimed offer gives its own, so a
+    repeated claim delivers the same message); `progress['delivered']` turns true once the box has it."""
+    workspace = app.workspaces.norm(workspace)
+    if not app.workspaces.valid(workspace):
         raise Refuse(f'invalid workspace: {workspace}')
     if sid and not re.fullmatch(r'[0-9A-Za-z-]{8,64}', sid):
         raise Refuse('invalid sid')
@@ -206,16 +207,18 @@ def send(app, workspace, text, sid=None, ask_n=None, source=None, echo=True):
                   )['sid'] if listening else None
     card = app.store.get_status(sid) if sid else {}
     entry = next((a for a in card.get('asks') or [] if a.get('n') == n), None) if n else None
-    mid = new_id()
+    mid = mid or new_id()
     msg = {'id': mid, 'workspace': workspace, 'sid': sid, 'ask': n, 'ask_text': entry.get('text') if entry else None,
            'ask_type': entry.get('type') if entry else None, 'text': text, 'at': now().isoformat(), 'thread': mid,
            'turn': 1}
     if source:
         msg['from'] = source
     app.delivery.send(msg)
+    if progress is not None:
+        progress['delivered'] = True
     open_thread(app, msg, card.get('name'))
     body = '\n'.join(f'  > {l}' for l in text.splitlines())
-    who = app.cfg['person'].get('source') or PERSON
+    who = source or app.cfg['person'].get('source') or PERSON
     app.log_line(f"- {now():%H:%M:%S} **{who} -> {workspace}**{f' (ask #{n})' if n else ''}\n{body}\n")
     app.emit('send', None, f'-> {workspace}: {text}', to_workspace=workspace, to_sid=sid, ask=n, id=mid)
     out = {'ok': True, 'id': mid, 'sid': sid}

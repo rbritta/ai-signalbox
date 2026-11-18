@@ -13,7 +13,31 @@ from pathlib import Path
 from typing import Iterator
 
 from . import locks
-from .util import read_json, write_atomic, write_json, now
+from .util import now, read_json, replace_retrying, write_atomic
+
+
+def claim_file(src, dst, update, lock):
+    """Move `src` to `dst` once among any number of processes and threads, and write `update(record)` there. Returns
+    the written record, or None when another one took it first (or it is gone, or the lock could not be had).
+
+    The rename can't decide alone: on Windows, processes renaming the same source at the same time can all succeed.
+    The lock decides, and inside it the source is read again: whoever comes second finds it gone."""
+    src, dst = Path(src), Path(dst)
+    try:
+        with locks.file_lock(lock, required=True):
+            record = read_json(src)
+            if not record:
+                return None
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                replace_retrying(src, dst)
+            except FileNotFoundError:
+                return None
+            record = update(record)
+            write_atomic(dst, record)
+            return record
+    except locks.LockTimeout:
+        return None
 
 
 class Store:
@@ -90,7 +114,8 @@ class Store:
     def offer_put(self, offer: dict) -> None: raise NotImplementedError
     def offer_get(self, oid: str, state: str = 'open'): raise NotImplementedError
     def offer_list(self, state: str = 'open') -> list[dict]: raise NotImplementedError
-    def offer_move(self, oid: str, src: str, dst: str, extra: dict): raise NotImplementedError
+    def offer_move(self, oid: str, src: str, dst: str, extra: dict, drop=()): raise NotImplementedError
+    def offer_update(self, oid: str, state: str, extra: dict): raise NotImplementedError
 
     # ------------------------------------------------------------ requests to the person-facing app
     def get_request(self, rid: str): raise NotImplementedError
@@ -236,19 +261,19 @@ class FileStore(Store):
         if data is None:
             path.unlink(missing_ok=True)
         else:
-            write_json(path, data)
+            write_atomic(path, data)
 
     def get_queue(self, res):
         return read_json(self.root / 'queues' / f'{res}.json', []) or []
 
     def put_queue(self, res, queue):
-        write_json(self.root / 'queues' / f'{res}.json', queue)
+        write_atomic(self.root / 'queues' / f'{res}.json', queue)
 
     def get_shared(self, res):
         return read_json(self.root / 'shared' / f'{res}.json', []) or []
 
     def put_shared(self, res, users):
-        write_json(self.root / 'shared' / f'{res}.json', users)
+        write_atomic(self.root / 'shared' / f'{res}.json', users)
 
     # ------------------------------------------------------------ priority
     def get_priority(self):
@@ -278,33 +303,28 @@ class FileStore(Store):
         write_atomic(self.box_dir(workspace) / f"{msg['id']}.json", msg)
 
     def box_list(self, workspace):
+        """The messages waiting in a workspace's box, oldest first (ids of the same second by the time they were
+        written)."""
         folder = self.box_dir(workspace)
         try:
-            names = sorted(n for n in os.listdir(folder) if n.endswith('.json'))
+            names = [n for n in os.listdir(folder) if n.endswith('.json')]
         except OSError:
             return []
         out = []
         for name in names:
             m = read_json(folder / name)
             if m:
-                out.append((name, m))
-        return out
+                try:
+                    written = (folder / name).stat().st_mtime_ns
+                except OSError:
+                    written = 0
+                out.append((name[:15], written, name, m))
+        return [(name, m) for _, _, name, m in sorted(out, key=lambda r: r[:3])]
 
     def box_claim(self, workspace, key, extra):
-        """Move one message to delivered/ by one atomic rename: two hooks of a session never deliver it twice."""
+        """Move one message to delivered/ once: two hooks of a session, or two sessions, never deliver it twice."""
         folder = self.box_dir(workspace)
-        done = folder / 'delivered'
-        done.mkdir(parents=True, exist_ok=True)
-        m = read_json(folder / key)
-        if not m:
-            return None
-        try:
-            os.replace(folder / key, done / key)
-        except OSError:
-            return None  # another hook took it first
-        m.update(extra)
-        write_json(done / key, m)
-        return m
+        return claim_file(folder / key, folder / 'delivered' / key, lambda m: {**m, **extra}, folder / '.claim.lock')
 
     def box_update(self, workspace, key, msg):
         write_atomic(self.box_dir(workspace) / key, msg)
@@ -349,21 +369,32 @@ class FileStore(Store):
         found = (o for o in (read_json(f) for f in folder.glob('*.json')) if o)
         return sorted(found, key=lambda o: (o.get('at') or '', o.get('id') or ''))
 
-    def offer_move(self, oid, src, dst, extra):
-        """Move an offer from one state folder to another by one atomic rename: of two sessions claiming it, one
-        wins and the other gets None. With src == dst it only adds the fields."""
-        a, b = self.offer_dir(src), self.offer_dir(dst)
-        b.mkdir(parents=True, exist_ok=True)
-        o = read_json(a / f'{oid}.json')
-        if not o:
-            return None
+    def offer_lock(self):
+        return self.offer_dir() / '.lock'
+
+    def offer_move(self, oid, src, dst, extra, drop=()):
+        """Move an offer from one state folder to another once: of two sessions claiming it (or one claiming and one
+        withdrawing), one gets the offer and the other None. `extra` adds fields, `drop` removes them."""
+        def update(o):
+            o = {k: v for k, v in o.items() if k not in drop}
+            o.update(extra)
+            return o
+        return claim_file(self.offer_dir(src) / f'{oid}.json', self.offer_dir(dst) / f'{oid}.json', update,
+                          self.offer_lock())
+
+    def offer_update(self, oid, state, extra):
+        """Add fields to an offer where it is. Returns it, or None when it is not in that state."""
         try:
-            os.replace(a / f'{oid}.json', b / f'{oid}.json')
-        except OSError:
-            return None  # another session took it first
-        o.update(extra)
-        write_json(b / f'{oid}.json', o)
-        return o
+            with locks.file_lock(self.offer_lock(), required=True):
+                path = self.offer_dir(state) / f'{oid}.json'
+                o = read_json(path)
+                if not o:
+                    return None
+                o.update(extra)
+                write_atomic(path, o)
+                return o
+        except locks.LockTimeout:
+            return None
 
     # ------------------------------------------------------------ requests
     def get_request(self, rid):

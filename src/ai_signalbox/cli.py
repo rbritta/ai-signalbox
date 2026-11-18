@@ -16,21 +16,31 @@ from .util import Refuse, clean_text
 HIDDEN = argparse.SUPPRESS
 
 
+def _stdin() -> str:
+    return clean_text(sys.stdin.buffer.read().decode('utf-8-sig', 'replace') if hasattr(sys.stdin, 'buffer')
+                      else sys.stdin.read())
+
+
+def _read(path, what) -> str:
+    """A text file, or stdin for `-` (an app posting through a pipe)."""
+    if path == '-':
+        return _stdin()
+    try:
+        return clean_text(Path(path).read_bytes().decode('utf-8-sig', 'replace'))
+    except OSError as err:
+        raise Refuse(f'{what}: could not read {path!r} ({err})') from None
+
+
 def _text(args, attr='text', required=False, what='text'):
-    """The free text of a command: --text-file, a lone `-` (stdin), or the positional words."""
+    """The free text of a command: --text-file (`-`: stdin), a lone `-` (stdin), or the positional words."""
     path = getattr(args, 'text_file', None)
     words = getattr(args, attr, None)
     if isinstance(words, str):
         words = [words]
     if path:
-        try:
-            raw = Path(path).read_bytes().decode('utf-8-sig', 'replace')
-        except OSError as err:
-            raise Refuse(f'--text-file: could not read {path!r} ({err})') from None
-        return clean_text(raw)
+        return _read(path, '--text-file')
     if words == ['-']:
-        return clean_text(sys.stdin.buffer.read().decode('utf-8', 'replace') if hasattr(sys.stdin, 'buffer')
-                          else sys.stdin.read())
+        return _stdin()
     text = ' '.join(words or []).strip()
     if required and not text:
         raise Refuse(f'{what}: give it with --text-file <file>')
@@ -39,10 +49,7 @@ def _text(args, attr='text', required=False, what='text'):
 
 def _file_or(value, path, what):
     if path:
-        try:
-            return clean_text(Path(path).read_bytes().decode('utf-8-sig', 'replace'))
-        except OSError as err:
-            raise Refuse(f'{what}: could not read {path!r} ({err})') from None
+        return _read(path, what)
     return value
 
 
@@ -57,7 +64,8 @@ def build_parser(app=None):
         return sub.add_parser(name, help=help_, allow_abbrev=False, **kw)
 
     def text_opts(parser, positional=True):
-        parser.add_argument('--text-file', help='the text, from a file (free text never rides in the shell)')
+        parser.add_argument('--text-file', help='the text, from a file, or - for stdin (free text never rides in '
+                                                 'the shell)')
         if positional:
             parser.add_argument('text', nargs='*', help=argparse.SUPPRESS)
 
@@ -105,16 +113,24 @@ def build_parser(app=None):
 
     c = cmd('offer', 'work put up for a session to claim: for a workspace, or any (no workspace); --withdraw ID')
     c.add_argument('workspace', nargs='?')
-    c.add_argument('--title')
+    c.add_argument('--title', help='a short title (default: the first line of the text)')
     c.add_argument('--from', dest='source', help='how the offer names who posted it')
-    c.add_argument('--withdraw', metavar='ID')
+    c.add_argument('--minutes', help='it expires (is withdrawn) when nobody claims it in this many minutes')
+    c.add_argument('--item', help="the item the claiming session's card moves to")
+    c.add_argument('--withdraw', metavar='ID', help='take an open offer back (alone: no text, workspace or options)')
     text_opts(c, positional=False)
-    c = cmd('offers', 'the open offers the calling session may claim (--all: every open offer)')
+    c = cmd('offers', 'the open offers the calling session may claim (--all: every open offer; --history: the '
+                      'claimed and withdrawn)')
     c.add_argument('--all', action='store_true')
+    c.add_argument('--history', action='store_true')
+    c.add_argument('--limit', type=int, default=20, help='--history: how many (default 20)')
     c.add_argument('--json', action='store_true')
     c.add_argument('--sid', help=HIDDEN)
-    c = cmd('claim', 'take an offer: it becomes the message and thread a send would have made, once')
-    c.add_argument('id')
+    c = cmd('claim', 'take an offer (or --next: the oldest one for this session): it becomes the message and thread a '
+                     'send would have made, once, and is printed')
+    c.add_argument('id', nargs='?')
+    c.add_argument('--next', action='store_true')
+    c.add_argument('--json', action='store_true')
     c.add_argument('--sid', help=HIDDEN)
 
     c = cmd('job', 'a long job of the session, with steps')
@@ -240,14 +256,26 @@ def run(app, args) -> int:  # noqa: C901 - one dispatch table
         threads.thread(app, a.id, text, from_person=a.from_person, close=a.close, sid=a.sid, as_json=a.json)
     elif a.cmd == 'offer':
         if a.withdraw:
+            extra = [f for f, v in (('workspace', a.workspace), ('--title', a.title), ('--from', a.source),
+                                    ('--minutes', a.minutes), ('--item', a.item), ('--text-file', a.text_file)) if v]
+            if extra:
+                raise Refuse(f"--withdraw takes only the offer id, not {', '.join(extra)}")
             offers.withdraw(app, a.withdraw)
         else:
             offers.offer(app, _text(a, required=True, what='the offer'), workspace=a.workspace, title=a.title,
-                         source=a.source)
+                         source=a.source, minutes=a.minutes, item=a.item)
     elif a.cmd == 'offers':
-        offers.listing(app, everything=a.all, as_json=a.json, sid=a.sid)
+        if a.history:
+            offers.history(app, as_json=a.json, limit=a.limit)
+        else:
+            offers.listing(app, everything=a.all, as_json=a.json, sid=a.sid)
     elif a.cmd == 'claim':
-        offers.claim(app, a.id, sid=a.sid)
+        if a.next == bool(a.id):
+            raise Refuse('claim takes an offer id, or --next')
+        if a.next:
+            offers.claim_next(app, sid=a.sid, as_json=a.json)
+        else:
+            offers.claim(app, a.id, sid=a.sid, as_json=a.json)
     elif a.cmd == 'job':
         jobs.job(app, a.name, steps=a.steps, step=a.step, end=a.end, note=' '.join(a.end_note) or None, item=a.item,
                  pid=a.pid, at=a.at, wait=a.wait, done=_file_or(a.done, a.done_file, '--done-file'), from_=a.from_,
@@ -320,16 +348,19 @@ def main(argv=None, app=None) -> int:
     pre = argparse.ArgumentParser(add_help=False)
     pre.add_argument('--config')
     known, rest = pre.parse_known_args(argv)
+    hooking = bool(rest) and rest[0] == 'hook'
     if app is None:
         from .app import App
         from .config import Config
         try:
             app = App(Config.load(known.config))
-        except (OSError, ValueError) as err:
-            print(f'signalbox: {err}', file=sys.stderr)
-            return 1
+        except Exception as err:  # noqa: BLE001  a broken config or a missing plugin
+            if not hooking and not isinstance(err, (OSError, ValueError, ImportError)):
+                raise
+            print(f'signalbox: {type(err).__name__}: {err}', file=sys.stderr)
+            return 0 if hooking else 1  # a hook never fails the host's turn
     parser = build_parser(app)
-    if rest and rest[0] == 'hook':  # a hook never fails on its arguments
+    if hooking:  # a hook never fails on its arguments
         name = rest[1] if len(rest) > 1 else ''
         from . import hooks
         code = hooks.run(app, name)
